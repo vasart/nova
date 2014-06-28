@@ -67,13 +67,11 @@ trusted_opts = [
                help='Attestation web API URL'),
     cfg.StrOpt('attestation_auth_blob',
                help='Attestation authorization blob - must change'),
-    cfg.IntOpt('attestation_auth_timeout',
-               default=60,
-               help='Attestation status cache valid period length'),
 ]
 
 CONF = cfg.CONF
-trust_group = cfg.OptGroup(name='trusted_computing', title='Trust parameters')
+trust_group = cfg.OptGroup(name='trusted_computing', 
+                           title='Trust parameters')
 CONF.register_group(trust_group)
 CONF.register_opts(trusted_opts, group=trust_group)
 
@@ -262,7 +260,13 @@ class ComputeAttestationCache(object):
 
 
 class ComputeAttestation(object):
-    def __init__(self):
+    def __init__(self, timeout=60):
+
+        catch_timeout = cfg.IntOpt('attestation_auth_timeout',
+               default=timeout,
+               help='Attestation status cache valid period length')       
+        CONF.register_opts(catch_timeout, group=trust_group)
+
         self.caches = ComputeAttestationCache()
 
     def is_trusted(self, host, trust):
