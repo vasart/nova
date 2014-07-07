@@ -31,7 +31,7 @@ class AdapterHandler(loadables.BaseLoader):
         super(AdapterHandler, self).__init__(BaseAdapter)
 
 
-def all_filters():
+def all_adapters():
     """Return a list of adapter classes found in this directory.
 
     This method is used as the default for available adapter
