@@ -342,9 +342,6 @@ class FilterScheduler(driver.Scheduler):
             if scheduler_host_subset_size < 1:
                 scheduler_host_subset_size = 1
             
-            #send the list of weighed and filtered hosts to periodic checks
-            periodic_checks.receive_hosts(weighed_hosts)
-
             chosen_host = random.choice(
                 weighed_hosts[0:scheduler_host_subset_size])
             selected_hosts.append(chosen_host)

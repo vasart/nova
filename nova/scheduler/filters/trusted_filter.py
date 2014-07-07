@@ -281,10 +281,17 @@ class TrustedFilter(filters.BaseHostFilter):
         self.compute_attestation = ComputeAttestation()
 
     def host_passes(self, host_state, filter_properties):
-        instance = filter_properties.get('instance_type', {})
-        extra = instance.get('extra_specs', {})
-        trust = extra.get('trust:trusted_host')
-        host = host_state.host
-        if trust:
-            return self.compute_attestation.is_trusted(host, trust)
-        return True
+        ''' Check if periodic tasks are running.'''
+        if(PeriodicChecks.periodic_tasks_running):
+            # get the nodes from Periodic Tasks
+            hosts = PeriodicChecks.get_trusted_pool
+            host = hosts[host_state.host]
+            return self.compute_attestation.is_trusted(host,trust)
+        else:
+            instance = filter_properties.get('instance_type', {})
+            extra = instance.get('extra_specs', {})
+            trust = extra.get('trust:trusted_host')
+            host = host_state.host
+            if trust:
+                return self.compute_attestation.is_trusted(host, trust)
+            return True
