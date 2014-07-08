@@ -71,23 +71,23 @@ class AdapterTestCase(test.NoDBTestCase):
         self.assertTrue(adapter_cls.is_trusted(host_state.host, extra_specs.get('trust:trusted_host')))
 
     def test_attestation_adapter_and_untrusted(self):
-        self.oat_data = {"hosts": [{"host_name": "host2",
+        self.oat_data = {"hosts": [{"host_name": "host1",
                                    "trust_lvl": "untrusted",
                                    "vtime": timeutils.isotime()}]}
         self._stub_service_is_up(True)
         adapter_cls = self.class_map['ComputeAttestationAdapter']()
         extra_specs = {'trust:trusted_host': 'untrusted'}
-        host_state = fakes.FakeHostState('host2', 'node1', {})
+        host_state = fakes.FakeHostState('host1', 'node1', {})
         self.assertFalse(adapter_cls.is_trusted(host_state.host, extra_specs.get('trust:trusted_host')))
 
     def test_attestation_adapter_and_unknown(self):
-        self.oat_data = {"hosts": [{"host_name": "host3",
+        self.oat_data = {"hosts": [{"host_name": "host1",
                            "trust_lvl": "unknown",
                            "vtime": timeutils.isotime()}]}
         self._stub_service_is_up(True)
         adapter_cls = self.class_map['ComputeAttestationAdapter']()
         extra_specs = {'trust:trusted_host': 'unknown'}
-        host_state = fakes.FakeHostState('host3', 'node1', {})
+        host_state = fakes.FakeHostState('host1', 'node1', {})
         self.assertFalse(adapter_cls.is_trusted(host_state.host, extra_specs.get('trust:trusted_host')))
 
 
