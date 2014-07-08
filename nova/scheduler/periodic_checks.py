@@ -45,14 +45,14 @@ class PeriodicChecks(object):
         # TODO return the local trusted pool
         return {} 
 
-    def add_Check(self, *args, **kwargs):
+    def add_Check(self, **kwargs):
         spacing = kwargs['spacing']
         type_of_check = kwargs['type_of_check'] 
         ''' negative time spacing will deactivate the periodic check '''
         @periodic_task.periodictask(spacing, run_immediately = True)
         def run_check(self):
             # @david TODO update pool based on value returned by adapter
-            pass
+            print "run_check called with args=",args," and kwargs=",kwargs
         return run_check    
     
     def removeCheck(self):
