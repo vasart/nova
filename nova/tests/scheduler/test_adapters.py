@@ -16,15 +16,19 @@ Tests For Host Adapter.
 import httplib
 import stubout
 
-from nova import context
-from nova.scheduler import adapters
-from nova.scheduler.adapters import attestation_adapter
-from nova.tests.scheduler import fakes
-from nova import servicegroup
 from nova import test
+from nova import context
+from nova import servicegroup
+from nova.scheduler import adapters
+from nova.tests.scheduler import fakes
+from nova.openstack.common import timeutils
+from nova.scheduler.adapters import attestation_adapter
+
+
 
 class AdapterTestCase(test.NoDBTestCase):
     """Test case for host adapters."""
+    USES_DB = True
 
     def fake_oat_request(self, *args, **kwargs):
         """Stubs out the response from OAT service."""
@@ -56,6 +60,9 @@ class AdapterTestCase(test.NoDBTestCase):
         self.stubs.Set(servicegroup.API, 'service_is_up', fake_service_is_up)
 
     def test_attestation_adapter_and_trusted(self):
+        self.oat_data = {"hosts": [{"host_name": "host1",
+                           "trust_lvl": "trusted",
+                           "vtime": timeutils.isotime()}]}
         self._stub_service_is_up(True)
         adapter_cls = self.class_map['ComputeAttestationAdapter']()
         extra_specs = {'trust:trusted_host': 'trusted'}
@@ -63,6 +70,9 @@ class AdapterTestCase(test.NoDBTestCase):
         self.assertTrue(adapter_cls.is_trusted(host_state.host, extra_specs.get('trust:trusted_host')))
 
     def test_attestation_adapter_and_untrusted(self):
+        self.oat_data = {"hosts": [{"host_name": "host2",
+                                   "trust_lvl": "untrusted",
+                                   "vtime": timeutils.isotime()}]}
         self._stub_service_is_up(True)
         adapter_cls = self.class_map['ComputeAttestationAdapter']()
         extra_specs = {'trust:trusted_host': 'untrusted'}
@@ -70,6 +80,9 @@ class AdapterTestCase(test.NoDBTestCase):
         self.assertFalse(adapter_cls.is_trusted(host_state.host, extra_specs.get('trust:trusted_host')))
 
     def test_attestation_adapter_and_unknown(self):
+        self.oat_data = {"hosts": [{"host_name": "host3",
+                           "trust_lvl": "unknown",
+                           "vtime": timeutils.isotime()}]}
         self._stub_service_is_up(True)
         adapter_cls = self.class_map['ComputeAttestationAdapter']()
         extra_specs = {'trust:trusted_host': 'unknown'}
