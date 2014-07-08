@@ -20,7 +20,7 @@ class PeriodicChecks(object):
             which case the trusted_filter will call OA directly.             
     '''
     # map of nodes and their trusted status
-    all_nodes = {}
+    compute_nodes = {}
     
     # list of running checks
     running_checks = {} 
@@ -40,7 +40,11 @@ class PeriodicChecks(object):
     def get_trusted_pool(self):
         # TODO return the local trusted pool
         return {} 
-
+    ''' 
+    This method is not to be called directly. It should be called through 
+        add_check()
+    @return: reference to run_check() method
+    '''
     def run_check_wrapper(self, **kwargs):
         check_id=kwargs['id']
         spacing = kwargs['spacing']
@@ -52,6 +56,11 @@ class PeriodicChecks(object):
             print "run_check called with args=",args," and kwargs=",kwargs
         return run_check    
     
+    '''
+    @param id: identifier for the check
+    @param spacing: time between successive checks in seconds
+    @param type-of_check: any additional info about of the check 
+    '''
     def add_check(self,**kwargs):
         check_id = kwargs['id']
         running_checks[check_id] = run_check_wrapper(self, **kwargs)
@@ -80,6 +89,10 @@ class PeriodicChecks(object):
         ''' optional: also specify type_of_check'''
         add_check({'id':check_id, 'spacing': new_spacing})
 
+    '''
+    Used to check of periodic tasks are running by 
+        scheduler.filters.trusted_filter
+    '''
     def is_periodic_checks_running(self):
         if PeriodicChecks.periodic_tasks_running:
             return True;
