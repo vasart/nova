@@ -39,8 +39,3 @@ class AdapterTestCase(test.NoDBTestCase):
         host_state = fakes.FakeHostState('jhapl', 'node1', {})
         self.assertTrue(adapter_cls.is_trusted(host_state.host, extra_specs.get('trust:trusted_host')))
 
-	def test_attestation_adapter_and_unknown(self):
-        adapter_cls = self.class_map['ComputeAttestationAdapter']()
-        extra_specs = {'trust:trusted_host': 'unknown'}
-        host_state = fakes.FakeHostState('testHost', 'node1', {})
-        self.assertTrue(adapter_cls.is_trusted(host_state.host, extra_specs.get('trust:trusted_host')))
