@@ -7,45 +7,42 @@ LOG = logging.getLogger(__name__)
 class PeriodicChecks(object):
     '''
     This module contains 4 main functions:
-        1. Accept user input through Nova API to create, update and delete checks
-        2. Store checks and their parameters inside Ceilometer using (Ceilometer API?)
+        1. Accept user input through Nova API to create, update and 
+                delete checks
+        2. Store checks and their parameters inside Ceilometer 
+                using (Ceilometer API?)
         3. Communicate with adapters for each running check
-        4. Communicate with trusted_filer.py to provide it with a trusted compute pool 
-            periodically or when user asks for get_trusted_pool
-    This component also mediates communication with OpenAttestation (OA) for the trusted_filter
-    unless it is not running, in which case the trusted_filter will call OA directly.             
+        4. Communicate with trusted_filer.py to provide it with a 
+                trusted compute pool periodically or when user asks 
+                for get_trusted_pool
+    This component also mediates communication with OpenAttestation 
+            (OA) for the trusted_filter unless it is not running, in 
+            which case the trusted_filter will call OA directly.             
     '''
     # map of nodes and their trusted status
     all_nodes = {}
     
     # list of running checks
-    running_checks = [] 
+    running_checks = {} 
     
     # periodic tasks not running by default
     periodic_tasks_running = False;
     
-    # list of weighed nodes received from filter_scheduler
-    weighed_hosts = {}
-    
-    ''' @param:   '''
     def __init__(self):
         ''' 
         TODO:
             a. Get information about checks from Ceilometer
             b. Initialize adapters for each check
-            c. Communicate with trusted_filter and let it know of my existence
         '''
-        
-        # periodic tasks are now running
+        # set flag to show that periodic checks are now running
         PeriodicChecks.periodic_tasks_running = True;
-        
-        
         
     def get_trusted_pool(self):
         # TODO return the local trusted pool
         return {} 
 
-    def add_Check(self, **kwargs):
+    def run_check_wrapper(self, **kwargs):
+        check_id=kwargs['id']
         spacing = kwargs['spacing']
         type_of_check = kwargs['type_of_check'] 
         ''' negative time spacing will deactivate the periodic check '''
@@ -55,22 +52,35 @@ class PeriodicChecks(object):
             print "run_check called with args=",args," and kwargs=",kwargs
         return run_check    
     
-    def removeCheck(self):
-        #  stop and delete adapter for this check and update Ceilometer database
-        pass
+    def add_check(self,**kwargs):
+        check_id = kwargs['id']
+        running_checks[check_id] = run_check_wrapper(self, **kwargs)
+        running_checks[check_id]()
+        # set the periodic tasks running flag to True
+        PeriodicChecks.periodic_tasks_running = True
     
-    def acceptAdapterMessage(self):
-        # update the local trusted pool
-        pass
-    
+    def removeCheck(self, **kwargs):
+        # stop and delete adapter for this check and update Ceilometer database
+        check_id = kwargs['id']
+        if check_id not in running_checks:
+            raise Exception("Check is not running")
+        else:
+            # stop the check
+            running_checks[check_id] = None
+            # remove it from list of running checks
+            running_checks.pop(check_id)
+            # check if there are no checks running
+            if len(running_checks) == 0:
+                PeriodicChecks.periodic_tasks_running = False
+            
+    def update_check(self, **kwargs):
+        check_id = kwargs['id']
+        new_spacing = kwargs['spacing']
+        remove_check({'id':check_id})
+        ''' optional: also specify type_of_check'''
+        add_check({'id':check_id, 'spacing': new_spacing})
+
     def is_periodic_checks_running(self):
         if PeriodicChecks.periodic_tasks_running:
             return True;
         return False;
-
-
-    @periodic_task.periodic_task(spacing=CONF.scheduler_driver_task_period,
-                                 run_immediately=True)
-    def _run_periodic_tasks(self, context):
-        self.driver.run_periodic_tasks(context)
-    
