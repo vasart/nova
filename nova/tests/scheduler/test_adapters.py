@@ -65,6 +65,7 @@ class AdapterTestCase(test.NoDBTestCase):
 
     def test_attestation_adapter_and_trusted(self):
         
+        self._set_oat_trusted('trusted')
         self._stub_service_is_up(True)
         adapter_cls = self.class_map['ComputeAttestationAdapter']()
         extra_specs = {'trust:trusted_host': 'trusted'}
@@ -81,7 +82,7 @@ class AdapterTestCase(test.NoDBTestCase):
         self.assertFalse(adapter_cls.is_trusted(host_state.host, extra_specs.get('trust:trusted_host')))
 
     def test_attestation_adapter_and_unknown(self):
-        
+
         self._set_oat_trusted('unknown')
         self._stub_service_is_up(True)
         adapter_cls = self.class_map['ComputeAttestationAdapter']()
