@@ -59,6 +59,7 @@ class AdapterTestCase(test.NoDBTestCase):
                 return ret_value
         self.stubs.Set(servicegroup.API, 'service_is_up', fake_service_is_up)
 
+
     def test_attestation_adapter_and_trusted(self):
         self.oat_data = {"hosts": [{"host_name": "host1",
                            "trust_lvl": "trusted",
