@@ -1,6 +1,8 @@
-
 from nova.openstack.common import log as logging
-from nova.scheduler import driver
+from nova.openstack.common import periodic_task
+from nova import db
+from nova.scheduler import adapters
+from nova import context
 
 LOG = logging.getLogger(__name__)
 
@@ -33,10 +35,14 @@ class PeriodicChecks(object):
             a. Get information about checks from Ceilometer
             b. Initialize adapters for each check
         '''
+        admin = context.get_admin_context()
+        self.compute_nodes = {}
+
         # set flag to show that periodic checks are now running
         PeriodicChecks.periodic_tasks_running = True;
         # get all adapters
-        self.adapters = get_all_adapters()
+        adapter_handler = adapters.AdapterHandler()
+        self.adapters = adapter_handler.get_all_adapters()
         # get all compute nodes
         self.compute_nodes = db.compute_node_get_all(admin)
         # trust status for each node in the compute pool
@@ -55,7 +61,7 @@ class PeriodicChecks(object):
     def run_checks(self, **kwargs):
         # form a temporary compute pool to prevent unavailability of pool during running checks
         trust_status_temp = {}
-        for node in compute_nodes:
+        for node in self.compute_nodes:
             for adapter in adapters:
                 result = adapter.is_trusted(node, 'trusted');
                 trust_status_temp[node] = result
@@ -67,31 +73,31 @@ class PeriodicChecks(object):
     @param type-of_check: (optional) any additional info about of the check 
     '''
     def add_check(self,**kwargs):
-        check_id = kwargs['id']
+        #check_id = kwargs['id']
         # set the periodic tasks running flag to True
         # TODO write new check into CONF
         PeriodicChecks.periodic_tasks_running = True
     
-    def removeCheck(self, **kwargs):
+    def remove_check(self, **kwargs):
         # stop and delete adapter for this check and update Ceilometer database
         check_id = kwargs['id']
-        if check_id not in running_checks:
+        if check_id not in self.running_checks:
             raise Exception("Check is not running")
         else:
             # stop the check
-            running_checks[check_id] = None
+            self.running_checks[check_id] = None
             # remove it from list of running checks
-            running_checks.pop(check_id)
+            self.running_checks.pop(check_id)
             # check if there are no checks running
-            if len(running_checks) == 0:
+            if len(self.running_checks) == 0:
                 PeriodicChecks.periodic_tasks_running = False
             
     def update_check(self, **kwargs):
         check_id = kwargs['id']
         new_spacing = kwargs['spacing']
-        remove_check({'id':check_id})
+        self.remove_check({'id':check_id})
         ''' optional: also specify type_of_check'''
-        add_check({'id':check_id, 'spacing': new_spacing})
+        self.add_check({'id':check_id, 'spacing': new_spacing})
 
     '''
     Used to check of periodic tasks are running by 
@@ -103,4 +109,4 @@ class PeriodicChecks(object):
         return False;
 
     def get_running_checks(self):
-        return running_check;
+        return self.running_check;
