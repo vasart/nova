@@ -25,6 +25,7 @@ class PeriodicChecks(object):
     
     # list of running checks
     running_checks = {} 
+    check_times = 0
     
     # periodic tasks not running by default
     periodic_tasks_running = False;
@@ -41,16 +42,15 @@ class PeriodicChecks(object):
         # set flag to show that periodic checks are now running
         PeriodicChecks.periodic_tasks_running = True;
         # get all adapters
-        adapter_handler = adapters.AdapterHandler()
-        self.adapters = adapter_handler.get_all_adapters()
+        self.adapter_handler = adapters.AdapterHandler()
         # get all compute nodes
         self.compute_nodes = db.compute_node_get_all(admin)
         # trust status for each node in the compute pool
         self.node_trust_status ={}
+        self._get_all_adapters()
                 
-    def get_all_adapters(self):
-        adapter_handler = adapters.AdapterHandler()
-        classes = adapter_handler.get_matching_classes(
+    def _get_all_adapters(self):
+        classes = self.adapter_handler.get_matching_classes(
                 ['nova.scheduler.adapters.all_adapters'])
         class_map = {}
         for cls in classes:
@@ -58,7 +58,7 @@ class PeriodicChecks(object):
         return class_map
     
     @periodic_task.periodic_task(spacing=5, run_immediately = True)
-    def run_checks(self, **kwargs):
+    def _run_checks(self, **kwargs):
         # form a temporary compute pool to prevent unavailability of pool during running checks
         trust_status_temp = {}
         for node in self.compute_nodes:
@@ -66,6 +66,7 @@ class PeriodicChecks(object):
                 result = adapter.is_trusted(node, 'trusted');
                 trust_status_temp[node] = result
         self.node_trust_status = trust_status_temp
+        self.check_times += 1
     
     '''
     @param id: identifier for the check

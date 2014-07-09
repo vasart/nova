@@ -1,21 +1,38 @@
-from nova import test
-from oslo.config import cfg
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+"""
+Tests For Periodic Check.
+"""
 
-class PeriodicChecksTestCase(test.NoDBTestCase):
-    """Test case for Periodic Checks class."""
-    
+from nova import test
+import time
+from nova.scheduler import periodic_checks
+
+
+class PeriodicTestCase(test.NoDBTestCase):
+    """Test case for host adapters."""
+    USES_DB = True
+    periodic_cls =  periodic_checks.PeriodicChecks
+    driver_cls_name = 'nova.scheduler.driver.Scheduler'
+
     def setUp(self):
-        super(SchedulerManagerTestCase, self).setUp()
+        super(PeriodicTestCase, self).setUp()
         self.flags(scheduler_driver=self.driver_cls_name)
-        self.stubs.Set(compute_api, 'API', fakes.FakeComputeAPI)
-        self.manager = self.manager_cls()
-        self.context = context.RequestContext('fake_user', 'fake_project')
-        self.topic = 'fake_topic'
-        self.fake_args = (1, 2, 3)
-        self.fake_kwargs = {'cat': 'meow', 'dog': 'woof'}
-        fake_server_actions.stub_out_action_events(self.stubs)
-    
-    def test_add_check(self):
-        pass
-        
+        self.periodic = self.periodic_cls()
+
+    def test_periodic_task(self):
+    	time.sleep(10)
+    	print self.periodic.check_times;
+    	self.assertEqual(2,self.periodic.check_times);
+    	
+
         
