@@ -59,7 +59,7 @@ class PeriodicChecks(object):
     '''
     @param id: identifier for the check
     @param spacing: time between successive checks in seconds
-    @param type-of_check: any additional info about of the check 
+    @param type-of_check: (optional) any additional info about of the check 
     '''
     def add_check(self,**kwargs):
         check_id = kwargs['id']
@@ -97,3 +97,6 @@ class PeriodicChecks(object):
         if PeriodicChecks.periodic_tasks_running:
             return True;
         return False;
+
+    def get_running_checks(self):
+        return running_check;
