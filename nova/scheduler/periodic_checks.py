@@ -1,8 +1,9 @@
+from nova import context
+from nova import db
 from nova.openstack.common import log as logging
 from nova.openstack.common import periodic_task
-from nova import db
 from nova.scheduler import adapters
-from nova import context
+
 
 LOG = logging.getLogger(__name__)
 
@@ -21,8 +22,7 @@ class PeriodicChecks(object):
             (OA) for the trusted_filter unless it is not running, in 
             which case the trusted_filter will call OA directly.             
     '''
-
-    
+        
     # list of running checks
     running_checks = {} 
     check_times = 0
