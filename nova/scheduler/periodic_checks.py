@@ -4,12 +4,10 @@ from nova.openstack.common import log as logging
 from nova.openstack.common import periodic_task
 from nova.scheduler import adapters
 
-
 LOG = logging.getLogger(__name__)
 
 class PeriodicChecks(object):
-    '''
-    This module contains 4 main functions:
+    '''This module contains 4 main functions:
         1. Accept user input through Nova API to create, update and 
                 delete checks
         2. Store checks and their parameters inside Ceilometer 
@@ -19,8 +17,8 @@ class PeriodicChecks(object):
                 trusted compute pool periodically or when user asks 
                 for get_trusted_pool
     This component also mediates communication with OpenAttestation 
-            (OA) for the trusted_filter unless it is not running, in 
-            which case the trusted_filter will call OA directly.             
+    (OA) for the trusted_filter unless it is not running, in which case 
+    the trusted_filter will call OA directly.             
     '''
         
     # list of running checks
@@ -30,22 +28,24 @@ class PeriodicChecks(object):
     periodic_tasks_running = False;
     
     def __init__(self):
-        ''' 
-        TODO:
+        ''' TODO:
             a. Get information about checks from Ceilometer
             b. Initialize adapters for each check
         '''
         admin = context.get_admin_context()
         self.compute_nodes = {}
 
-        # set flag to show that periodic checks are now running
+        ''' set flag to show that periodic checks are now running'''
         PeriodicChecks.periodic_tasks_running = True;
-        # get all adapters
+
+        ''' get all adapters'''
         adapter_handler = adapters.AdapterHandler()
         self.adapters = adapter_handler.get_all_adapters()
-        # get all compute nodes
+
+        ''' get all compute nodes'''
         self.compute_nodes = db.compute_node_get_all(admin)
-        # trust status for each node in the compute pool
+
+        ''' trust status for each node in the compute pool ''' 
         self.node_trust_status ={}
                 
     def get_all_adapters(self):
@@ -59,7 +59,8 @@ class PeriodicChecks(object):
     
     @periodic_task.periodic_task(spacing=5, run_immediately = True)
     def run_checks(self, **kwargs):
-        # form a temporary compute pool to prevent unavailability of pool during running checks
+        ''' form a temporary compute pool to prevent unavailability of pool 
+        during running checks'''
         trust_status_temp = {}
         for node in self.compute_nodes:
             for adapter in adapters:
@@ -67,19 +68,22 @@ class PeriodicChecks(object):
                 trust_status_temp[node] = result
         self.node_trust_status = trust_status_temp
     
-    '''
+    ''' Add checks through horizon
     @param id: identifier for the check
     @param spacing: time between successive checks in seconds
     @param type-of_check: (optional) any additional info about of the check 
     '''
     def add_check(self,**kwargs):
-        #check_id = kwargs['id']
-        # set the periodic tasks running flag to True
-        # TODO write new check into CONF
+        ''' check_id = kwargs['id']
+        set the periodic tasks running flag to True
+        TODO write new check into CONF 
+        '''
         PeriodicChecks.periodic_tasks_running = True
     
     def remove_check(self, **kwargs):
-        # stop and delete adapter for this check and update Ceilometer database
+        ''' stop and delete adapter for this check and update Ceilometer 
+        database
+        '''
         check_id = kwargs['id']
         if check_id not in self.running_checks:
             raise Exception("Check is not running")
@@ -95,13 +99,12 @@ class PeriodicChecks(object):
     def update_check(self, **kwargs):
         check_id = kwargs['id']
         new_spacing = kwargs['spacing']
-        self.remove_check({'id':check_id})
+        self.remove_check[check_id]
         ''' optional: also specify type_of_check'''
-        self.add_check({'id':check_id, 'spacing': new_spacing})
+        self.add_check['id':check_id, 'spacing': new_spacing]
 
-    '''
-    Used to check of periodic tasks are running by 
-        scheduler.filters.trusted_filter
+    ''' Used to check of periodic tasks are running by 
+    scheduler.filters.trusted_filter
     '''
     def is_periodic_checks_running(self):
         if PeriodicChecks.periodic_tasks_running:
@@ -109,4 +112,4 @@ class PeriodicChecks(object):
         return False;
 
     def get_running_checks(self):
-        return self.running_check;
+        return self.running_checks;
