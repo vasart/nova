@@ -296,3 +296,4 @@ class TrustedFilter(filters.BaseHostFilter):
             if trust:
                 return self.compute_attestation.is_trusted(host, trust)
             return True
+

@@ -53,8 +53,6 @@ linux_net_opts = [
     cfg.StrOpt('public_interface',
                default='eth0',
                help='Interface for public IP addresses'),
-    cfg.IntOpt('network_device_mtu',
-               help='MTU setting for network interface'),
     cfg.StrOpt('dhcpbridge',
                default=paths.bindir_def('nova-dhcpbridge'),
                help='Location of nova-dhcpbridge'),
@@ -136,6 +134,7 @@ CONF.register_opts(linux_net_opts)
 CONF.import_opt('host', 'nova.netconf')
 CONF.import_opt('use_ipv6', 'nova.netconf')
 CONF.import_opt('my_ip', 'nova.netconf')
+CONF.import_opt('network_device_mtu', 'nova.objects.network')
 
 
 # NOTE(vish): Iptables supports chain names of up to 28 characters,  and we
@@ -191,6 +190,12 @@ class IptablesTable(object):
         self.unwrapped_chains = set()
         self.remove_chains = set()
         self.dirty = True
+
+    def has_chain(self, name, wrap=True):
+        if wrap:
+            return name in self.chains
+        else:
+            return name in self.unwrapped_chains
 
     def add_chain(self, name, wrap=True):
         """Adds a named chain to the table.
@@ -826,7 +831,7 @@ def initialize_gateway_device(dev, network_ref):
     _enable_ipv4_forwarding()
 
     # NOTE(vish): The ip for dnsmasq has to be the first address on the
-    #             bridge for it to respond to reqests properly
+    #             bridge for it to respond to requests properly
     try:
         prefix = network_ref.cidr.prefixlen
     except AttributeError:
@@ -1428,7 +1433,7 @@ class LinuxBridgeInterfaceDriver(LinuxNetInterfaceDriver):
                           iface,
                           network, gateway)
 
-        if CONF.share_dhcp_address:
+        if network['share_address'] or CONF.share_dhcp_address:
             isolate_dhcp_address(iface, network['dhcp_server'])
         # NOTE(vish): applying here so we don't get a lock conflict
         iptables_manager.apply()
@@ -1445,7 +1450,7 @@ class LinuxBridgeInterfaceDriver(LinuxNetInterfaceDriver):
             LinuxBridgeInterfaceDriver.remove_bridge(network['bridge'],
                                                      gateway)
 
-        if CONF.share_dhcp_address:
+        if network['share_address'] or CONF.share_dhcp_address:
             remove_isolate_dhcp_address(iface, network['dhcp_server'])
 
         iptables_manager.apply()
@@ -1534,6 +1539,11 @@ class LinuxBridgeInterfaceDriver(LinuxNetInterfaceDriver):
             LOG.debug(msg, {'interface': interface, 'bridge': bridge})
             out, err = _execute('brctl', 'addif', bridge, interface,
                                 check_exit_code=False, run_as_root=True)
+            if (err and err != "device %s is already a member of a bridge; "
+                     "can't enslave it to bridge %s.\n" % (interface, bridge)):
+                msg = _('Failed to add interface: %s') % err
+                raise exception.NovaException(msg)
+
             out, err = _execute('ip', 'link', 'set', interface, 'up',
                                 check_exit_code=False, run_as_root=True)
 
@@ -1565,11 +1575,6 @@ class LinuxBridgeInterfaceDriver(LinuxNetInterfaceDriver):
             for fields in old_routes:
                 _execute('ip', 'route', 'add', *fields,
                          run_as_root=True)
-
-            if (err and err != "device %s is already a member of a bridge;"
-                     "can't enslave it to bridge %s.\n" % (interface, bridge)):
-                msg = _('Failed to add interface: %s') % err
-                raise exception.NovaException(msg)
 
         if filtering:
             # Don't forward traffic unless we were told to be a gateway
@@ -1635,29 +1640,14 @@ def isolate_dhcp_address(interface, address):
                  % (interface, address))
     rules.append('OUTPUT -p ARP -o %s --arp-ip-src %s -j DROP'
                  % (interface, address))
+    rules.append('FORWARD -p IPv4 -i %s --ip-protocol udp '
+                 '--ip-destination-port 67:68 -j DROP'
+                 % interface)
+    rules.append('FORWARD -p IPv4 -o %s --ip-protocol udp '
+                 '--ip-destination-port 67:68 -j DROP'
+                 % interface)
     # NOTE(vish): the above is not possible with iptables/arptables
     ensure_ebtables_rules(rules)
-    # block dhcp broadcast traffic across the interface
-    ipv4_filter = iptables_manager.ipv4['filter']
-    ipv4_filter.add_rule('FORWARD',
-                         ('-m physdev --physdev-in %s -d 255.255.255.255 '
-                          '-p udp --dport 67 -j %s'
-                          % (interface, CONF.iptables_drop_action)),
-                         top=True)
-    ipv4_filter.add_rule('FORWARD',
-                         ('-m physdev --physdev-out %s -d 255.255.255.255 '
-                          '-p udp --dport 67 -j %s'
-                          % (interface, CONF.iptables_drop_action)),
-                         top=True)
-    # block ip traffic to address across the interface
-    ipv4_filter.add_rule('FORWARD',
-                         ('-m physdev --physdev-in %s -d %s -j %s'
-                          % (interface, address, CONF.iptables_drop_action)),
-                         top=True)
-    ipv4_filter.add_rule('FORWARD',
-                         ('-m physdev --physdev-out %s -s %s -j %s'
-                          % (interface, address, CONF.iptables_drop_action)),
-                         top=True)
 
 
 def remove_isolate_dhcp_address(interface, address):
@@ -1667,38 +1657,14 @@ def remove_isolate_dhcp_address(interface, address):
                  % (interface, address))
     rules.append('OUTPUT -p ARP -o %s --arp-ip-src %s -j DROP'
                  % (interface, address))
+    rules.append('FORWARD -p IPv4 -i %s --ip-protocol udp '
+                 '--ip-destination-port 67:68 -j DROP'
+                 % interface)
+    rules.append('FORWARD -p IPv4 -o %s --ip-protocol udp '
+                 '--ip-destination-port 67:68 -j DROP'
+                 % interface)
     remove_ebtables_rules(rules)
     # NOTE(vish): the above is not possible with iptables/arptables
-    # block dhcp broadcast traffic across the interface
-    ipv4_filter = iptables_manager.ipv4['filter']
-
-    drop_actions = ['DROP']
-    if CONF.iptables_drop_action != 'DROP':
-        drop_actions.append(CONF.iptables_drop_action)
-
-    for drop_action in drop_actions:
-        ipv4_filter.remove_rule('FORWARD',
-                                ('-m physdev --physdev-in %s '
-                                 '-d 255.255.255.255 '
-                                 '-p udp --dport 67 -j %s'
-                                 % (interface, drop_action)),
-                                top=True)
-        ipv4_filter.remove_rule('FORWARD',
-                                ('-m physdev --physdev-out %s '
-                                 '-d 255.255.255.255 '
-                                 '-p udp --dport 67 -j %s'
-                                 % (interface, drop_action)),
-                                top=True)
-
-        # block ip traffic to address across the interface
-        ipv4_filter.remove_rule('FORWARD',
-                                ('-m physdev --physdev-in %s -d %s -j %s'
-                                 % (interface, address, drop_action)),
-                                top=True)
-        ipv4_filter.remove_rule('FORWARD',
-                                ('-m physdev --physdev-out %s -s %s -j %s'
-                                 % (interface, address, drop_action)),
-                                top=True)
 
 
 def get_gateway_rules(bridge):
