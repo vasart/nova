@@ -19,8 +19,7 @@ class PeriodicChecks(object):
             (OA) for the trusted_filter unless it is not running, in 
             which case the trusted_filter will call OA directly.             
     '''
-    # map of nodes and their trusted status
-    compute_nodes = {}
+
     
     # list of running checks
     running_checks = {} 
@@ -36,25 +35,31 @@ class PeriodicChecks(object):
         '''
         # set flag to show that periodic checks are now running
         PeriodicChecks.periodic_tasks_running = True;
-        
-    def get_trusted_pool(self):
-        # TODO return the local trusted pool
-        return {} 
-    ''' 
-    This method is not to be called directly. It should be called through 
-        add_check()
-    @return: reference to run_check() method
-    '''
-    def run_check_wrapper(self, **kwargs):
-        check_id=kwargs['id']
-        spacing = kwargs['spacing']
-        type_of_check = kwargs['type_of_check'] 
-        ''' negative time spacing will deactivate the periodic check '''
-        @periodic_task.periodictask(spacing, run_immediately = True)
-        def run_check(self):
-            # @david TODO update pool based on value returned by adapter
-            print "run_check called with args=",args," and kwargs=",kwargs
-        return run_check    
+        # get all adapters
+        self.adapters = get_all_adapters()
+        # get all compute nodes
+        self.compute_nodes = db.compute_node_get_all(admin)
+        # trust status for each node in the compute pool
+        self.node_trust_status ={}
+                
+    def get_all_adapters(self):
+        adapter_handler = adapters.AdapterHandler()
+        classes = adapter_handler.get_matching_classes(
+                ['nova.scheduler.adapters.all_adapters'])
+        class_map = {}
+        for cls in classes:
+            class_map[cls.__name__] = cls
+        return class_map
+    
+    @periodic_task.periodic_task(spacing=5, run_immediately = True)
+    def run_checks(self, **kwargs):
+        # form a temporary compute pool to prevent unavailability of pool during running checks
+        trust_status_temp = {}
+        for node in compute_nodes:
+            for adapter in adapters:
+                result = adapter.is_trusted(node, 'trusted');
+                trust_status_temp[node] = result
+        self.node_trust_status = trust_status_temp
     
     '''
     @param id: identifier for the check
@@ -63,9 +68,8 @@ class PeriodicChecks(object):
     '''
     def add_check(self,**kwargs):
         check_id = kwargs['id']
-        running_checks[check_id] = run_check_wrapper(self, **kwargs)
-        running_checks[check_id]()
         # set the periodic tasks running flag to True
+        # TODO write new check into CONF
         PeriodicChecks.periodic_tasks_running = True
     
     def removeCheck(self, **kwargs):
