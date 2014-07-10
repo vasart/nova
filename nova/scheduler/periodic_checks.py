@@ -23,6 +23,7 @@ class PeriodicChecks(object):
         
     # list of running checks
     running_checks = {} 
+    check_times = 0
     
     # periodic tasks not running by default
     periodic_tasks_running = False;
@@ -47,8 +48,9 @@ class PeriodicChecks(object):
 
         ''' trust status for each node in the compute pool ''' 
         self.node_trust_status ={}
+        self._get_all_adapters()
                 
-    def get_all_adapters(self):
+    def _get_all_adapters(self):
         adapter_handler = adapters.AdapterHandler()
         classes = adapter_handler.get_matching_classes(
                 ['nova.scheduler.adapters.all_adapters'])
@@ -58,6 +60,7 @@ class PeriodicChecks(object):
         return class_map
     
     @periodic_task.periodic_task(spacing=5, run_immediately = True)
+
     def run_checks(self, **kwargs):
         ''' form a temporary compute pool to prevent unavailability of pool 
         during running checks'''
@@ -67,6 +70,7 @@ class PeriodicChecks(object):
                 result = adapter.is_trusted(node, 'trusted');
                 trust_status_temp[node] = result
         self.node_trust_status = trust_status_temp
+        self.check_times += 1
     
     ''' Add checks through horizon
     @param id: identifier for the check
@@ -113,3 +117,4 @@ class PeriodicChecks(object):
 
     def get_running_checks(self):
         return self.running_checks;
+
