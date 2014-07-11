@@ -59,18 +59,20 @@ class PeriodicChecks(object):
             class_map[cls.__name__] = cls
         return class_map
     
-    @periodic_task.periodic_task(spacing=5, run_immediately = True)
-
+    @periodic_task.periodic_task
     def run_checks(self, **kwargs):
         ''' form a temporary compute pool to prevent unavailability of pool 
         during running checks'''
+        print "called"
+        self.check_times += 1
         trust_status_temp = {}
         for node in self.compute_nodes:
             for adapter in adapters:
                 result = adapter.is_trusted(node, 'trusted');
                 trust_status_temp[node] = result
         self.node_trust_status = trust_status_temp
-        self.check_times += 1
+        return 100
+        
     
     ''' Add checks through horizon
     @param id: identifier for the check

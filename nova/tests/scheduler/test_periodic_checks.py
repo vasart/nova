@@ -13,10 +13,12 @@
 Tests For Periodic Check.
 """
 
-from nova import test
-import time
-from nova.scheduler import periodic_checks
 
+import time
+
+from nova import test
+from nova.openstack.common import periodic_task
+from nova.scheduler import periodic_checks
 
 class PeriodicTestCase(test.NoDBTestCase):
     """Test case for host adapters."""
@@ -30,9 +32,7 @@ class PeriodicTestCase(test.NoDBTestCase):
         self.periodic = self.periodic_cls()
 
     def test_periodic_task(self):
-    	time.sleep(10)
-    	print self.periodic.check_times;
-    	self.assertEqual(2,self.periodic.check_times);
+    	self.assertEqual(100,periodic_checks.run_checks());
     	
 
         
