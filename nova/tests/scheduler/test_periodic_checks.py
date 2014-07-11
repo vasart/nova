@@ -18,9 +18,6 @@ from nova import test
 from nova.openstack.common import periodic_task
 from nova.scheduler import periodic_checks
 
-from oslo.config import cfg
-
-CONF = cfg.CONF
 
 class PeriodicTestCase(test.NoDBTestCase):
     """Test case for host adapters."""

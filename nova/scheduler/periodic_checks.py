@@ -4,8 +4,6 @@ from nova.openstack.common import log as logging
 from nova.openstack.common import periodic_task
 from nova.scheduler import adapters
 
-LOG = logging.getLogger(__name__)
-
 class PeriodicChecks(object):
     '''This module contains 4 main functions:
         1. Accept user input through Nova API to create, update and 
