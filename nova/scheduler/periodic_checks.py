@@ -28,7 +28,7 @@ class PeriodicChecks(object):
     check_times = 0
     
     # periodic tasks not running by default
-    periodic_tasks_running = False;
+    periodic_tasks_running = False
     
     def __init__(self):
         ''' 
@@ -40,13 +40,13 @@ class PeriodicChecks(object):
         self.compute_nodes = {}
 
         # set flag to show that periodic checks are now running
-        PeriodicChecks.periodic_tasks_running = True;
+        PeriodicChecks.periodic_tasks_running = True
         # get all adapters
         self.adapter_handler = adapters.AdapterHandler()
         # get all compute nodes
         self.compute_nodes = db.compute_node_get_all(admin)
         # trust status for each node in the compute pool
-        self.node_trust_status ={}
+        self.node_trust_status = {}
         self._get_all_adapters()
                 
     def _get_all_adapters(self):
@@ -59,11 +59,12 @@ class PeriodicChecks(object):
     
     @periodic_task.periodic_task(spacing=5, run_immediately = True)
     def _run_checks(self, **kwargs):
-        # form a temporary compute pool to prevent unavailability of pool during running checks
+        # form a temporary compute pool to prevent unavailability of 
+        #pool during running checks
         trust_status_temp = {}
         for node in self.compute_nodes:
             for adapter in adapters:
-                result = adapter.is_trusted(node, 'trusted');
+                result = adapter.is_trusted(node, 'trusted')
                 trust_status_temp[node] = result
         self.node_trust_status = trust_status_temp
         self.check_times += 1
@@ -80,7 +81,7 @@ class PeriodicChecks(object):
         PeriodicChecks.periodic_tasks_running = True
     
     def remove_check(self, **kwargs):
-        # stop and delete adapter for this check and update Ceilometer database
+        """stop and delete for this check and update Ceilometer database"""
         check_id = kwargs['id']
         if check_id not in self.running_checks:
             raise Exception("Check is not running")
