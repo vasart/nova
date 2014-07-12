@@ -16,13 +16,13 @@ import time
 
 from nova import test
 from nova.openstack.common import periodic_task
-from nova.scheduler import periodic_checks
+from nova.scheduler import periodic_checks as pc
 
 
 class PeriodicTestCase(test.NoDBTestCase):
     """Test case for host adapters."""
     USES_DB = True
-    periodic_cls =  periodic_checks.PeriodicChecks
+    periodic_cls =  pc.PeriodicChecks
     driver_cls_name = 'nova.scheduler.driver.Scheduler'
 
     def setUp(self):
@@ -31,7 +31,7 @@ class PeriodicTestCase(test.NoDBTestCase):
         self.periodic = self.periodic_cls()
 
     def test_periodic_task(self):
-        v = periodic_checks.run_checks({})
+        v = periodic_cls.run_checks({})
     	self.assertEqual(2,v)
         
     def test_periodic_utils(self):
