@@ -35,7 +35,7 @@ class PeriodicTestCase(test.NoDBTestCase):
         
     def test_periodic_utils(self):
         @periodic_task.periodic_task
-        def run_sample_checks(self):
+        def run_sample_checks():
             print "sample check started!"
             return "100"
         self.assertEqual("100", run_sample_checks())
