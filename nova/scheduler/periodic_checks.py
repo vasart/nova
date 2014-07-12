@@ -43,6 +43,8 @@ class PeriodicChecks(object):
         # trust status for each node in the compute pool
         self.node_trust_status = {}
         self._get_all_adapters()
+        # test code
+        self.check_times = 1
                 
     def _get_all_adapters(self):
         adapter_handler = adapters.AdapterHandler()
@@ -57,15 +59,13 @@ class PeriodicChecks(object):
     def run_checks(self, **kwargs):
         ''' form a temporary compute pool to prevent unavailability of pool 
         during running checks'''
-        print "called"
-        self.check_times += 1
         trust_status_temp = {}
         for node in self.compute_nodes:
             for adapter in adapters:
                 result = adapter.is_trusted(node, 'trusted')
                 trust_status_temp[node] = result
         self.node_trust_status = trust_status_temp
-        return 100
+        return self.check_times+1
         
     
     ''' Add checks through horizon
