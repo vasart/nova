@@ -56,7 +56,7 @@ class PeriodicChecks(object):
         return class_map
     
     @periodic_task.periodic_task
-    def run_checks(self, **kwargs):
+    def run_checks(self, kwargs):
         ''' form a temporary compute pool to prevent unavailability of pool 
         during running checks'''
         trust_status_temp = {}
