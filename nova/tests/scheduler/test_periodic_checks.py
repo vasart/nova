@@ -31,7 +31,7 @@ class PeriodicTestCase(test.NoDBTestCase):
         self.periodic = self.periodic_cls()
 
     def test_periodic_task(self):
-        v = self.periodic_cls.run_checks(self.periodic_cls,{})
+        v = self.periodic_cls.run_checks(PeriodicChecks,{})
     	self.assertEqual(2,v)
         
     def test_periodic_utils(self):
