@@ -58,7 +58,7 @@ class PeriodicChecks(object):
             class_map[cls.__name__] = cls
         return class_map
     
-    @periodic_task.periodic_task(spacing=5,run_immediately=True)
+    @periodic_task.periodic_task(spacing=5,run_immediately=False)
     def run_checks(self, kwargs):
         ''' form a temporary compute pool to prevent unavailability of pool 
         during running checks'''
