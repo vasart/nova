@@ -58,7 +58,7 @@ class PeriodicChecks(object):
             class_map[cls.__name__] = cls
         return class_map
     
-    @periodic_task.periodic_task(spacing=5,run_immediately=False)
+    @periodic_task.periodic_task(spacing=5,run_immediately=True)
     def run_checks(self, kwargs):
         ''' form a temporary compute pool to prevent unavailability of pool 
         during running checks'''
@@ -68,7 +68,7 @@ class PeriodicChecks(object):
                 result = adapter.is_trusted(node, 'trusted')
                 trust_status_temp[node] = result
         self.node_trust_status = trust_status_temp
-        self.check_times += 10
+        self.check_times += 1
         return self.check_times
         
     
