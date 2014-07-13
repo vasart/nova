@@ -30,9 +30,12 @@ class PeriodicTestCase(test.NoDBTestCase):
         self.flags(scheduler_driver=self.driver_cls_name)
         self.periodic = self.periodic_cls()
 
+    def test__init__(self):
+        assertEqual(1,self.periodic.check_times)
+
     def test_periodic_task(self):
         res = self.periodic.run_checks({})
-    	self.assertEqual(2,res)
+    	self.assertEqual(101,res)
         
     def test_periodic_utils(self):
         @periodic_task.periodic_task(spacing=5,run_immediately=True)
