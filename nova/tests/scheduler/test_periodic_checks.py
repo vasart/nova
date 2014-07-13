@@ -43,5 +43,8 @@ class PeriodicTestCase(test.NoDBTestCase):
             return "100"
         self.assertEqual("100", run_sample_checks())
     	
+    def test_compute_pool_init(self):
+        compute_nodes = self.periodic.compute_nodes
+        self.assertFalse(compute_nodes,None)
 
         
