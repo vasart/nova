@@ -47,4 +47,9 @@ class PeriodicTestCase(test.NoDBTestCase):
         compute_nodes = self.periodic.compute_nodes
         self.assertFalse(compute_nodes,None)
 
-        
+    def test_periodic_checks_off(self):
+        ''' Test that when component is turned off, it returns None as the
+        compute pool
+        '''
+        self.periodic.turn_off_periodic_check()
+        self.assertEqual(None,self.periodic.get_trusted_pool())

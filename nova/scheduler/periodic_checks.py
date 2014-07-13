@@ -133,3 +133,5 @@ class PeriodicChecks(object):
             return self.compute_nodes
         return None
 
+    def turn_off_periodic_check(self):
+        PeriodicChecks.periodic_tasks_running = False
