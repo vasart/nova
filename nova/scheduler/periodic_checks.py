@@ -2,6 +2,7 @@ from nova import context
 from nova import db
 from nova.openstack.common import log as logging
 from nova.openstack.common import periodic_task
+from nova.openstack.common import timeutils
 from nova.scheduler import adapters
 
 class PeriodicChecks(object):
@@ -38,17 +39,26 @@ class PeriodicChecks(object):
         PeriodicChecks.periodic_tasks_running = True
         # get all adapters
         self.adapter_handler = adapters.AdapterHandler()
-        # get all compute nodes
-        self.compute_nodes = db.compute_node_get_all(admin)
-        # trust status for each node in the compute pool
-        self.node_trust_status = {}
+        # all compute nodes
+        self.compute_nodes = {}
+        # all adapters in the adapters folder 
         self._get_all_adapters()
         # test code
         self.check_times = 1
         # start checks
         self.run_checks({})
+        computes = db.compute_node_get_all(admin)
+        for compute in computes:
+            service = compute['service']
+            host = service['host']
+            self._init_cache_entry(host)
         
-                
+    def _init_cache_entry(self, host):
+        self.compute_nodes[host] = {
+            'trust_lvl': 'unknown',
+            'vtime': timeutils.normalize_time(
+                        timeutils.parse_isotime("1970-01-01T00:00:00Z"))}
+     
     def _get_all_adapters(self):
         adapter_handler = adapters.AdapterHandler()
         classes = adapter_handler.get_matching_classes(
@@ -62,13 +72,13 @@ class PeriodicChecks(object):
     def run_checks(self, kwargs):
         ''' form a temporary compute pool to prevent unavailability of pool 
         during running checks'''
-        trust_status_temp = {}
-        for node in self.compute_nodes:
-            for adapter in adapters:
-                result = adapter.is_trusted(node, 'trusted')
-                trust_status_temp[node] = result
-        self.node_trust_status = trust_status_temp
-        self.check_times += 1
+        if(PeriodicChecks.periodic_tasks_running):
+            for host in self.compute_nodes:
+                for adapter in adapters:
+                    result = adapter.is_trusted(host, 'trusted')
+                    current_host = self.compute_nodes[host]
+                    current_host['trust_lvl'] = result
+            self.check_times += 1
         return self.check_times
         
     
@@ -80,7 +90,7 @@ class PeriodicChecks(object):
     def add_check(self,**kwargs):
         ''' check_id = kwargs['id']
         set the periodic tasks running flag to True
-        TODO write new check into CONF 
+        TODO write new check into CONF and then call adapter
         '''
         PeriodicChecks.periodic_tasks_running = True
     
@@ -117,4 +127,9 @@ class PeriodicChecks(object):
 
     def get_running_checks(self):
         return self.running_checks;
+
+    def get_trusted_pool(self):
+        if(PeriodicChecks.periodic_tasks_running):
+            return self.compute_nodes
+        return None
 

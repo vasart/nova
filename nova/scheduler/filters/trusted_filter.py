@@ -55,6 +55,7 @@ from nova.openstack.common import jsonutils
 from nova.openstack.common import log as logging
 from nova.openstack.common import timeutils
 from nova.scheduler import filters
+from nova.scheduler import periodic_checks
 
 LOG = logging.getLogger(__name__)
 
@@ -283,11 +284,12 @@ class TrustedFilter(filters.BaseHostFilter):
 
     def host_passes(self, host_state, filter_properties):
         ''' Check if periodic tasks are running.'''
-        if(PeriodicChecks.periodic_tasks_running):
-            # get the nodes from Periodic Tasks
-            hosts = PeriodicChecks.get_trusted_pool
+        # get the nodes from Periodic Tasks
+        hosts = periodic_checks.PeriodicChecks.get_trusted_pool
+        if hosts is not None :
+            # periodic checks are running
             host = hosts[host_state.host]
-            return self.compute_attestation.is_trusted(host,trust)
+            return host['trust_lvl']
         else:
             instance = filter_properties.get('instance_type', {})
             extra = instance.get('extra_specs', {})
