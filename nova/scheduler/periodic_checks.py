@@ -135,3 +135,6 @@ class PeriodicChecks(object):
 
     def turn_off_periodic_check(self):
         PeriodicChecks.periodic_tasks_running = False
+
+    def turn_on_periodic_check(self):
+        PeriodicChecks.periodic_tasks_running = True

@@ -53,3 +53,12 @@ class PeriodicTestCase(test.NoDBTestCase):
         '''
         self.periodic.turn_off_periodic_check()
         self.assertEqual(None,self.periodic.get_trusted_pool())
+
+    def test_periodic_checks_on(self):
+        ''' Test that when component is turned on, it does not return None as the
+        compute pool
+        '''
+        self.periodic.turn_off_periodic_check()
+        self.periodic.turn_on_periodic_check()
+        time.sleep(5)
+        self.assertFalse(None,self.periodic.get_trusted_pool())
