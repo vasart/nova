@@ -68,7 +68,7 @@ class PeriodicChecks(object):
                 result = adapter.is_trusted(node, 'trusted')
                 trust_status_temp[node] = result
         self.node_trust_status = trust_status_temp
-        self.check_times += 100
+        self.check_times += 10
         return self.check_times
         
     
