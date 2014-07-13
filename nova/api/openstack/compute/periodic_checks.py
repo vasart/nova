@@ -104,7 +104,7 @@ class Controller(wsgi.Controller):
 
         filter_name = 'status'
         if filter_name in filters:
-            # The Image API expects us to use lowercase strings for status
+            # The API expects us to use lowercase strings for status
             filters[filter_name] = filters[filter_name].lower()
 
         return filters
@@ -119,7 +119,8 @@ class Controller(wsgi.Controller):
         context = req.environ['nova.context']
 
         try:
-            periodic_check = self._image_service.show(context, id)
+            periodic_check = None
+            #periodic_check = self._periodic_check_service.show(context, id)
         except (exception.NotFound):
             explanation = _("Periodic check not found.")
             raise webob.exc.HTTPNotFound(explanation=explanation)
@@ -135,7 +136,8 @@ class Controller(wsgi.Controller):
         """
         context = req.environ['nova.context']
         try:
-            self._image_service.delete(context, id)
+            pass
+            #self._periodic_check_service.delete(context, id)
         except exception.NotFound:
             explanation = _("Periodic check not found.")
             raise webob.exc.HTTPNotFound(explanation=explanation)
@@ -160,8 +162,9 @@ class Controller(wsgi.Controller):
             params[key] = val
 
         try:
-            periodic_checks = self._image_service.detail(context,
-                filters=filters, **page_params)
+            periodic_checks = []
+            #periodic_checks = self._periodic_check_service.detail(context,
+            #    filters=filters, **page_params)
         except exception.Invalid as e:
             raise webob.exc.HTTPBadRequest(explanation=e.format_message())
         return self._view_builder.index(req, periodic_checks)
@@ -180,8 +183,9 @@ class Controller(wsgi.Controller):
         for key, val in page_params.iteritems():
             params[key] = val
         try:
-            periodic_checks = self._image_service.detail(context,
-                filters=filters, **page_params)
+            periodic_checks = []
+            #periodic_checks = self._periodic_check_service.detail(context,
+            #    filters=filters, **page_params)
         except exception.Invalid as e:
             raise webob.exc.HTTPBadRequest(explanation=e.format_message())
 
