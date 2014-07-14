@@ -75,9 +75,13 @@ class PeriodicChecks(object):
         if(PeriodicChecks.periodic_tasks_running):
             for host in self.compute_nodes:
                 for adapter in adapters:
-                    result, _ = adapter.is_trusted(host, 'trusted')
-                    current_host = self.compute_nodes[host]
-                    current_host['trust_lvl'] = result
+                    result, turn_on = adapter.is_trusted(host, 'trusted')
+                    if turn_on:
+                        current_host = self.compute_nodes[host]
+                        current_host['trust_lvl'] = result
+                        '''store data'''
+                    else:
+                        '''not store data'''
             self.check_times += 1
         return self.check_times
         

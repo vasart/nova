@@ -96,3 +96,15 @@ class AdapterTestCase(test.NoDBTestCase):
                         extra_specs.get('trust:trusted_host'))
         self.assertFalse(is_trust)
 
+    def test_attestation_adapter_and_turn_on(self):
+        
+        self._set_oat_trusted('trusted')
+        self._stub_service_is_up(True)
+        adapter_cls = self.class_map['ComputeAttestationAdapter']()
+        extra_specs = {'trust:trusted_host': 'trusted'}
+        host_state = fakes.FakeHostState('host1', 'node1', {})
+        is_trust, turn_on = adapter_cls.is_trusted(host_state.host, 
+                        extra_specs.get('trust:trusted_host'))
+        self.assertTrue(is_trust)
+        self.assertTrue(turn_on)
+
