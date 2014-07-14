@@ -70,9 +70,7 @@ class AdapterTestCase(test.NoDBTestCase):
         adapter_cls = self.class_map['ComputeAttestationAdapter']()
         extra_specs = {'trust:trusted_host': 'trusted'}
         host_state = fakes.FakeHostState('host1', 'node1', {})
-        is_trust, _ = adapter_cls.is_trusted(host_state.host, 
-                        extra_specs.get('trust:trusted_host'))
-        self.assertTrue(is_trust)
+        self.assertTrue(adapter_cls.is_trusted(host_state.host, extra_specs.get('trust:trusted_host')))
 
     def test_attestation_adapter_and_untrusted(self):
 
@@ -81,9 +79,7 @@ class AdapterTestCase(test.NoDBTestCase):
         adapter_cls = self.class_map['ComputeAttestationAdapter']()
         extra_specs = {'trust:trusted_host': 'trusted'}
         host_state = fakes.FakeHostState('host2', 'node1', {})
-        is_trust, _ = adapter_cls.is_trusted(host_state.host, 
-                        extra_specs.get('trust:trusted_host'))
-        self.assertFalse(is_trust)
+        self.assertFalse(adapter_cls.is_trusted(host_state.host, extra_specs.get('trust:trusted_host')))
 
     def test_attestation_adapter_and_unknown(self):
 
@@ -92,7 +88,6 @@ class AdapterTestCase(test.NoDBTestCase):
         adapter_cls = self.class_map['ComputeAttestationAdapter']()
         extra_specs = {'trust:trusted_host': 'trusted'}
         host_state = fakes.FakeHostState('host3', 'node1', {})
-        is_trust, _ = adapter_cls.is_trusted(host_state.host, 
-                        extra_specs.get('trust:trusted_host'))
-        self.assertFalse(is_trust)
+        self.assertFalse(adapter_cls.is_trusted(host_state.host, extra_specs.get('trust:trusted_host')))
+
 
