@@ -12,7 +12,7 @@
 #    under the License.
 
 """
-Filter to add support for Trusted Computing Pools.
+Filter to add support for Trusted Computing Pools. 
 
 Filter that only schedules tasks on a host if the integrity (trust)
 of that host matches the trust requested in the `extra_specs' for the
