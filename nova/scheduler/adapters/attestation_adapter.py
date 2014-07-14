@@ -271,7 +271,7 @@ class ComputeAttestationAdapter(adapters.BaseAdapter):
         self.caches = ComputeAttestationCache()
 
     def is_trusted(self, host, trust):
-        print CONF.trusted_computing.attestation_status
+        #print CONF.trusted_computing.attestation_status
         if CONF.trusted_computing.attestation_status == 1:
             level = self.caches.get_host_attestation(host)
             return (trust == level, True)
