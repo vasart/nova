@@ -12,7 +12,7 @@
 #    under the License.
 
 """
-Filter to add support for Trusted Computing Pools.
+Filter to add support for Trusted Computing Pools. 
 
 Filter that only schedules tasks on a host if the integrity (trust)
 of that host matches the trust requested in the `extra_specs' for the
@@ -71,9 +71,9 @@ trusted_opts = [
     cfg.IntOpt('attestation_auth_timeout',
                default=60,
                help='Attestation status cache valid period length'),
-    #cfg.IntOpt('attestation_status',
-    #           default=1,
-    #           help='Attestation status for turn off or on'),
+    cfg.IntOpt('attestation_status',
+              default=1,
+              help='Attestation status for turn off or on'),
 ]
 
 CONF = cfg.CONF
@@ -271,11 +271,11 @@ class ComputeAttestationAdapter(adapters.BaseAdapter):
         self.caches = ComputeAttestationCache()
 
     def is_trusted(self, host, trust):
-        #print CONF.trusted_computing.attestation_status
+        print CONF.trusted_computing.attestation_status
         if 1 == 1:
             level = self.caches.get_host_attestation(host)
             #return (trust == level, True)
-            return trust == level
+            return trust == level, True
         else:
-            return trust == level
+            return trust == level, True
            #return (True, False)

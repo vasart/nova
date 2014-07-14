@@ -75,7 +75,7 @@ class PeriodicChecks(object):
         if(PeriodicChecks.periodic_tasks_running):
             for host in self.compute_nodes:
                 for adapter in adapters:
-                    result = adapter.is_trusted(host, 'trusted')
+                    result, _ = adapter.is_trusted(host, 'trusted')
                     current_host = self.compute_nodes[host]
                     current_host['trust_lvl'] = result
             self.check_times += 1
