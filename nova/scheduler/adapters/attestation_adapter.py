@@ -71,7 +71,7 @@ trusted_opts = [
     cfg.IntOpt('attestation_auth_timeout',
                default=60,
                help='Attestation status cache valid period length'),
-    cfg.IntOpt('attestation_status',
+    cfg.StrOpt('attestation_status',
               default='trust_on',
               help='Attestation status for turn off or on'),
 ]
