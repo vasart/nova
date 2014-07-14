@@ -72,7 +72,7 @@ trusted_opts = [
                default=60,
                help='Attestation status cache valid period length'),
     cfg.IntOpt('attestation_status',
-              default=1,
+              default='trust_on',
               help='Attestation status for turn off or on'),
 ]
 
@@ -272,10 +272,10 @@ class ComputeAttestationAdapter(adapters.BaseAdapter):
 
     def is_trusted(self, host, trust):
         print CONF.trusted_computing.attestation_status
-        if 1 == 1:
+        if CONF.trusted_computing.attestation_status == 'trust_on':
             level = self.caches.get_host_attestation(host)
             #return (trust == level, True)
-            return trust == level, True
+            return trust == (level, True)
         else:
-            return trust == level, True
+            return trust == (level, False)
            #return (True, False)
