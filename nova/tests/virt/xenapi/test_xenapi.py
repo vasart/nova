@@ -238,7 +238,8 @@ class XenAPIVolumeTestCase(stubs.XenAPITestBaseNoDB):
         conn = xenapi_conn.XenAPIDriver(fake.FakeVirtAPI(), False)
         vm = xenapi_fake.create_vm(self.instance['name'], 'Running')
         conn_info = self._make_connection_info()
-        conn.attach_volume(None, conn_info, self.instance, '/dev/sdc')
+        self.assertIsNone(
+            conn.attach_volume(None, conn_info, self.instance, '/dev/sdc'))
 
         # check that the VM has a VBD attached to it
         # Get XenAPI record for VBD
@@ -367,6 +368,22 @@ class XenAPIVMTestCase(stubs.XenAPITestBase):
         self.assertEqual(server_info[0], 'myscheme')
         self.assertEqual(server_info[1], 'myaddress')
 
+    expected_raw_diagnostics = {
+        'vbd_xvdb_write': '0.0',
+        'memory_target': '4294967296.0000',
+        'memory_internal_free': '1415564.0000',
+        'memory': '4294967296.0000',
+        'vbd_xvda_write': '0.0',
+        'cpu0': '0.0042',
+        'vif_0_tx': '287.4134',
+        'vbd_xvda_read': '0.0',
+        'vif_0_rx': '1816.0144',
+        'vif_2_rx': '0.0',
+        'vif_2_tx': '0.0',
+        'vbd_xvdb_read': '0.0',
+        'last_update': '1328795567',
+    }
+
     def test_get_diagnostics(self):
         def fake_get_rrd(host, vm_uuid):
             path = os.path.dirname(os.path.realpath(__file__))
@@ -374,24 +391,47 @@ class XenAPIVMTestCase(stubs.XenAPITestBase):
                 return re.sub(r'\s', '', f.read())
         self.stubs.Set(vm_utils, '_get_rrd', fake_get_rrd)
 
-        fake_diagnostics = {
-            'vbd_xvdb_write': '0.0',
-            'memory_target': '4294967296.0000',
-            'memory_internal_free': '1415564.0000',
-            'memory': '4294967296.0000',
-            'vbd_xvda_write': '0.0',
-            'cpu0': '0.0042',
-            'vif_0_tx': '287.4134',
-            'vbd_xvda_read': '0.0',
-            'vif_0_rx': '1816.0144',
-            'vif_2_rx': '0.0',
-            'vif_2_tx': '0.0',
-            'vbd_xvdb_read': '0.0',
-            'last_update': '1328795567',
-        }
+        expected = self.expected_raw_diagnostics
         instance = self._create_instance()
-        expected = self.conn.get_diagnostics(instance)
-        self.assertThat(fake_diagnostics, matchers.DictMatches(expected))
+        actual = self.conn.get_diagnostics(instance)
+        self.assertThat(actual, matchers.DictMatches(expected))
+
+    def test_get_instance_diagnostics(self):
+        def fake_get_rrd(host, vm_uuid):
+            path = os.path.dirname(os.path.realpath(__file__))
+            with open(os.path.join(path, 'vm_rrd.xml')) as f:
+                return re.sub(r'\s', '', f.read())
+        self.stubs.Set(vm_utils, '_get_rrd', fake_get_rrd)
+
+        expected = {
+            'config_drive': False,
+            'state': 'running',
+            'driver': 'xenapi',
+            'version': '1.0',
+            'uptime': 0,
+            'hypervisor_os': None,
+            'cpu_details': [{'time': 0}, {'time': 0},
+                            {'time': 0}, {'time': 0}],
+            'nic_details': [{'mac_address': '00:00:00:00:00:00',
+                             'rx_drop': 0,
+                             'rx_errors': 0,
+                             'rx_octets': 0,
+                             'rx_packets': 0,
+                             'tx_drop': 0,
+                             'tx_errors': 0,
+                             'tx_octets': 0,
+                             'tx_packets': 0}],
+            'disk_details': [{'errors_count': 0,
+                              'id': '',
+                              'read_bytes': 0,
+                              'read_requests': 0,
+                              'write_bytes': 0,
+                              'write_requests': 0}],
+            'memory_details': {'maximum': 8192, 'used': 0}}
+
+        instance = self._create_instance()
+        actual = self.conn.get_instance_diagnostics(instance)
+        self.assertEqual(expected, actual.serialize())
 
     def test_get_vnc_console(self):
         instance = self._create_instance(obj=True)
@@ -526,7 +566,7 @@ class XenAPIVMTestCase(stubs.XenAPITestBase):
         for vdi_ref in xenapi_fake.get_all('VDI'):
             vdi_rec = xenapi_fake.get_record('VDI', vdi_ref)
             name_label = vdi_rec["name_label"]
-            self.assertTrue(not name_label.endswith('snapshot'))
+            self.assertFalse(name_label.endswith('snapshot'))
 
         self.assertTrue(self.fake_upload_called)
 
@@ -558,7 +598,7 @@ class XenAPIVMTestCase(stubs.XenAPITestBase):
         self.assertEqual(self.vm['memory_dynamic_min'], mem_bytes)
         self.assertEqual(self.vm['VCPUs_max'], str(vcpus))
         self.assertEqual(self.vm['VCPUs_at_startup'], str(vcpus))
-        if vcpu_weight == None:
+        if vcpu_weight is None:
             self.assertEqual(self.vm['VCPUs_params'], {})
         else:
             self.assertEqual(self.vm['VCPUs_params'],
@@ -873,19 +913,30 @@ class XenAPIVMTestCase(stubs.XenAPITestBase):
         self._tee_executed = False
 
         def _tee_handler(cmd, **kwargs):
-            input = kwargs.get('process_input', None)
-            self.assertIsNotNone(input)
-            config = [line.strip() for line in input.split("\n")]
-            # Find the start of eth0 configuration and check it
-            index = config.index('auto eth0')
-            self.assertEqual(config[index + 1:index + 8], [
-                'iface eth0 inet static',
-                'address 192.168.1.100',
-                'netmask 255.255.255.0',
-                'broadcast 192.168.1.255',
-                'gateway 192.168.1.1',
-                'dns-nameservers 192.168.1.3 192.168.1.4',
-                ''])
+            actual = kwargs.get('process_input', None)
+            expected = """\
+# Injected by Nova on instance boot
+#
+# This file describes the network interfaces available on your system
+# and how to activate them. For more information, see interfaces(5).
+
+# The loopback network interface
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet static
+    address 192.168.1.100
+    netmask 255.255.255.0
+    broadcast 192.168.1.255
+    gateway 192.168.1.1
+    dns-nameservers 192.168.1.3 192.168.1.4
+iface eth0 inet6 static
+    address 2001:db8:0:1::1
+    netmask 64
+    gateway 2001:db8:0:1::1
+"""
+            self.assertEqual(expected, actual)
             self._tee_executed = True
             return '', ''
 
@@ -2610,7 +2661,7 @@ class XenAPIDom0IptablesFirewallTestCase(stubs.XenAPITestBase):
 
         network_model = fake_network.fake_get_instance_nw_info(self.stubs, 1)
 
-        from nova.compute import utils as compute_utils
+        from nova.compute import utils as compute_utils  # noqa
         self.stubs.Set(compute_utils, 'get_nw_info_for_instance',
                        lambda instance: network_model)
 
@@ -2816,9 +2867,9 @@ def _create_service_entries(context, values={'avail_zone1': ['fake_host1',
                                                          'fake_host2'],
                                          'avail_zone2': ['fake_host3'], }):
     for avail_zone, hosts in values.iteritems():
-        for host in hosts:
+        for service_host in hosts:
             db.service_create(context,
-                              {'host': host,
+                              {'host': service_host,
                                'binary': 'nova-compute',
                                'topic': 'compute',
                                'report_count': 0})
@@ -3012,8 +3063,8 @@ class XenAPIAggregateTestCase(stubs.XenAPITestBase):
         if metadata:
             aggregate.metadata.update(metadata)
         aggregate.create(self.context)
-        for host in hosts:
-            aggregate.add_host(host)
+        for aggregate_host in hosts:
+            aggregate.add_host(aggregate_host)
         return aggregate
 
     def test_add_host_to_aggregate_invalid_changing_status(self):
@@ -3053,9 +3104,9 @@ class XenAPIAggregateTestCase(stubs.XenAPITestBase):
         metadata = {pool_states.POOL_FLAG: "XenAPI",
                     pool_states.KEY: pool_states.ACTIVE}
         db.aggregate_metadata_add(self.context, aggr['id'], metadata)
-        for host in values[fake_zone]:
+        for aggregate_host in values[fake_zone]:
             aggr = self.api.add_host_to_aggregate(self.context,
-                                                  aggr['id'], host)
+                                                  aggr['id'], aggregate_host)
         # let's mock the fact that the aggregate is in error!
         expected = self.api.remove_host_from_aggregate(self.context,
                                                        aggr['id'],

@@ -42,12 +42,12 @@ from nova import context
 from nova import db
 from nova.db.sqlalchemy import models
 from nova import exception
+from nova.i18n import _
 from nova.image import glance
 from nova.network import manager
 from nova.network.neutronv2 import api as neutron_api
 from nova import objects
 from nova.objects import instance as instance_obj
-from nova.openstack.common.gettextutils import _
 from nova.openstack.common import jsonutils
 from nova.openstack.common import policy as common_policy
 from nova.openstack.common import timeutils
@@ -721,7 +721,7 @@ class ServersControllerTest(ControllerTest):
 
         req = fakes.HTTPRequestV3.blank('/servers?tenant_id=newfake')
         res = self.controller.index(req)
-        self.assertTrue('servers' in res)
+        self.assertIn('servers', res)
 
     def test_tenant_id_filter_implies_all_tenants(self):
         def fake_get_all(context, filters=None, sort_key=None,
@@ -743,7 +743,7 @@ class ServersControllerTest(ControllerTest):
         req = fakes.HTTPRequestV3.blank('/servers?tenant_id=newfake',
                                       use_admin_context=True)
         res = self.controller.index(req)
-        self.assertTrue('servers' in res)
+        self.assertIn('servers', res)
 
     def test_all_tenants_param_normal(self):
         def fake_get_all(context, filters=None, sort_key=None,
@@ -2094,6 +2094,15 @@ class ServersControllerCreateTest(test.TestCase):
         self.assertRaises(webob.exc.HTTPBadRequest,
                           self._test_create_extra, params)
 
+    @mock.patch.object(compute_api.API, 'create')
+    def test_create_instance_raise_user_data_too_large(self, mock_create):
+        mock_create.side_effect = exception.InstanceUserDataTooLarge(
+            maxsize=1, length=2)
+
+        self.assertRaises(webob.exc.HTTPBadRequest,
+                          self.controller.create,
+                          self.req, self.body)
+
     def test_create_instance_with_network_with_no_subnet(self):
         network = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'
         requested_networks = [{'uuid': network}]
@@ -2447,6 +2456,21 @@ class ServersControllerCreateTest(test.TestCase):
 
         self.stubs.Set(compute_api.API, 'create', fake_create)
         self.assertRaises(webob.exc.HTTPConflict,
+                          self._test_create_extra, params)
+
+    @mock.patch.object(compute_api.API, 'create')
+    def test_create_multiple_instance_with_specified_ip_neutronv2(self,
+                                                                  _api_mock):
+        _api_mock.side_effect = exception.InvalidFixedIpAndMaxCountRequest(
+            reason="")
+        network = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+        port = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'
+        address = '10.0.0.1'
+        requested_networks = [{'uuid': network, 'fixed_ip': address,
+                               'port': port}]
+        params = {'networks': requested_networks}
+        self.body['server']['max_count'] = 2
+        self.assertRaises(webob.exc.HTTPBadRequest,
                           self._test_create_extra, params)
 
     def test_create_multiple_instance_with_neutronv2_port(self):

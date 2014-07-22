@@ -16,7 +16,6 @@
 import datetime
 import uuid
 
-import glanceclient.v1.images
 import routes
 import six
 import webob
@@ -289,20 +288,6 @@ def _make_image_fixtures():
     return fixtures
 
 
-def stub_out_glanceclient_create(stubs, sent_to_glance):
-    """We return the metadata sent to glance by modifying the sent_to_glance
-    dict in place
-    """
-    orig_add_image = glanceclient.v1.images.ImageManager.create
-
-    def fake_create(context, metadata, data=None):
-        sent_to_glance['metadata'] = metadata
-        sent_to_glance['data'] = data
-        return orig_add_image(metadata, data)
-
-    stubs.Set(glanceclient.v1.images.ImageManager, 'create', fake_create)
-
-
 def stub_out_glance(stubs):
     def fake_get_remote_image_service():
         client = glance_stubs.StubGlanceClient(_make_image_fixtures())
@@ -568,7 +553,7 @@ def stub_instance(id, user_id=None, project_id=None, host=None,
         "availability_zone": availability_zone,
         "display_name": display_name or server_name,
         "display_description": "",
-        "locked": locked_by != None,
+        "locked": locked_by is not None,
         "locked_by": locked_by,
         "metadata": metadata,
         "access_ip_v4": access_ipv4,
@@ -719,7 +704,7 @@ def stub_bdm_get_all_by_instance(context, instance_uuid, use_slave=False):
             'volume_id': 'volume_id2', 'instance_uuid': instance_uuid})]
 
 
-def fake_get_available_languages(domain):
+def fake_get_available_languages():
     existing_translations = ['en_GB', 'en_AU', 'de', 'zh_CN', 'en_US']
     return existing_translations
 

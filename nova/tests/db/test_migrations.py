@@ -53,8 +53,8 @@ import sqlalchemy.exc
 
 import nova.db.sqlalchemy.migrate_repo
 from nova.db.sqlalchemy import utils as db_utils
+from nova.i18n import _
 from nova.openstack.common.db.sqlalchemy import utils as oslodbutils
-from nova.openstack.common.gettextutils import _
 from nova.openstack.common import log as logging
 from nova.openstack.common import processutils
 from nova import test
@@ -707,6 +707,16 @@ class TestNovaMigrations(BaseWalkMigrationTestCase, CommonTestsMixIn):
         self.assertColumnNotExists(engine, 'networks', 'enable_dhcp')
         self.assertColumnNotExists(engine, 'networks', 'share_address')
 
+    def _check_246(self, engine, data):
+        pci_devices = oslodbutils.get_table(engine, 'pci_devices')
+        self.assertEqual(1, len([fk for fk in pci_devices.foreign_keys
+                                 if fk.parent.name == 'compute_node_id']))
+
+    def _post_downgrade_246(self, engine):
+        pci_devices = oslodbutils.get_table(engine, 'pci_devices')
+        self.assertEqual(0, len([fk for fk in pci_devices.foreign_keys
+                                 if fk.parent.name == 'compute_node_id']))
+
 
 class TestBaremetalMigrations(BaseWalkMigrationTestCase, CommonTestsMixIn):
     """Test sqlalchemy-migrate migrations."""
@@ -865,4 +875,4 @@ class ProjectTestCase(test.NoDBTestCase):
 
         helpful_msg = (_("The following migrations are missing a downgrade:"
                          "\n\t%s") % '\n\t'.join(sorted(missing_downgrade)))
-        self.assertTrue(not missing_downgrade, helpful_msg)
+        self.assertFalse(missing_downgrade, helpful_msg)

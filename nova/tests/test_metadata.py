@@ -20,7 +20,6 @@ import base64
 import hashlib
 import hmac
 import json
-import mock
 import re
 
 try:
@@ -28,6 +27,7 @@ try:
 except ImportError:
     import pickle
 
+import mock
 from oslo.config import cfg
 import webob
 
@@ -434,7 +434,7 @@ class OpenStackMetadataTestCase(test.TestCase):
         # there is as expected, and that /content lists them.
         for (path, content) in content:
             fent = [f for f in mddict['files'] if f['path'] == path]
-            self.assertTrue((len(fent) == 1))
+            self.assertEqual(1, len(fent))
             fent = fent[0]
             found = mdinst.lookup("/openstack%s" % fent['content_path'])
             self.assertEqual(found, content)
@@ -657,6 +657,21 @@ class MetadataHandlerTestCase(test.TestCase):
                                 fake_get_metadata=fake_get_metadata,
                                 headers=None)
         self.assertEqual(response.status_int, 500)
+
+    @mock.patch('nova.utils.constant_time_compare')
+    def test_by_instance_id_uses_constant_time_compare(self, mock_compare):
+        mock_compare.side_effect = test.TestingException
+
+        req = webob.Request.blank('/')
+        hnd = handler.MetadataRequestHandler()
+
+        req.headers['X-Instance-ID'] = 'fake-inst'
+        req.headers['X-Tenant-ID'] = 'fake-proj'
+
+        self.assertRaises(test.TestingException,
+                          hnd._handle_instance_id_request, req)
+
+        self.assertEqual(1, mock_compare.call_count)
 
     def test_user_data_with_neutron_instance_id(self):
         expected_instance_id = 'a-b-c-d'

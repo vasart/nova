@@ -13,12 +13,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import pkg_resources
-
 from oslo.config import cfg
+import pkg_resources
 import six.moves.urllib.parse as urlparse
 
-from nova.openstack.common.gettextutils import _
+from nova.i18n import _
 import nova.openstack.common.log as logging
 from nova.virt.xenapi import vm_utils
 

@@ -14,13 +14,13 @@
 
 import abc
 import datetime
-import iso8601
 
+import iso8601
 import netaddr
 import six
 
+from nova.i18n import _
 from nova.network import model as network_model
-from nova.openstack.common.gettextutils import _
 from nova.openstack.common import timeutils
 
 

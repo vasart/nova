@@ -27,11 +27,10 @@ from oslo.config import cfg
 import six
 
 from nova import exception
-from nova.objects import fixed_ip as fixed_ip_obj
-from nova.objects import virtual_interface as vif_obj
+from nova.i18n import _
+from nova import objects
 from nova.openstack.common import excutils
 from nova.openstack.common import fileutils
-from nova.openstack.common.gettextutils import _
 from nova.openstack.common import importutils
 from nova.openstack.common import jsonutils
 from nova.openstack.common import log as logging
@@ -273,7 +272,9 @@ class IptablesTable(object):
 
         rule_obj = IptablesRule(chain, rule, wrap, top)
         if rule_obj in self.rules:
-            LOG.debug("Skipping duplicate iptables rule addition")
+            LOG.debug("Skipping duplicate iptables rule addition. "
+                      "%(rule)r already in %(rules)r",
+                      {'rule': rule_obj, 'rules': self.rules})
         else:
             self.rules.append(IptablesRule(chain, rule, wrap, top))
             self.dirty = True
@@ -885,9 +886,9 @@ def get_dhcp_leases(context, network_ref):
     host = None
     if network_ref['multi_host']:
         host = CONF.host
-    for fixedip in fixed_ip_obj.FixedIPList.get_by_network(context,
-                                                           network_ref,
-                                                           host=host):
+    for fixedip in objects.FixedIPList.get_by_network(context,
+                                                      network_ref,
+                                                      host=host):
         # NOTE(cfb): Don't return a lease entry if the IP isn't
         #            already leased
         if fixedip.leased:
@@ -903,9 +904,9 @@ def get_dhcp_hosts(context, network_ref):
     if network_ref['multi_host']:
         host = CONF.host
     macs = set()
-    for fixedip in fixed_ip_obj.FixedIPList.get_by_network(context,
-                                                           network_ref,
-                                                           host=host):
+    for fixedip in objects.FixedIPList.get_by_network(context,
+                                                      network_ref,
+                                                      host=host):
         if fixedip.allocated:
             if fixedip.virtual_interface.address not in macs:
                 hosts.append(_host_dhcp(fixedip))
@@ -916,8 +917,7 @@ def get_dhcp_hosts(context, network_ref):
 def get_dns_hosts(context, network_ref):
     """Get network's DNS hosts in hosts format."""
     hosts = []
-    for fixedip in fixed_ip_obj.FixedIPList.get_by_network(context,
-                                                           network_ref):
+    for fixedip in objects.FixedIPList.get_by_network(context, network_ref):
         if fixedip.allocated:
             hosts.append(_host_dns(fixedip))
     return '\n'.join(hosts)
@@ -950,8 +950,6 @@ def _remove_dnsmasq_accept_rules(dev):
 # NOTE(russellb) Curious why this is needed?  Check out this explanation from
 # markmc: https://bugzilla.redhat.com/show_bug.cgi?id=910619#c6
 def _add_dhcp_mangle_rule(dev):
-    if not os.path.exists('/dev/vhost-net'):
-        return
     table = iptables_manager.ipv4['mangle']
     table.add_rule('POSTROUTING',
                    '-o %s -p udp -m udp --dport 68 -j CHECKSUM '
@@ -973,14 +971,14 @@ def get_dhcp_opts(context, network_ref):
     host = None
     if network_ref['multi_host']:
         host = CONF.host
-    fixedips = fixed_ip_obj.FixedIPList.get_by_network(context, network_ref,
-                                                       host=host)
+    fixedips = objects.FixedIPList.get_by_network(context, network_ref,
+                                                  host=host)
     if fixedips:
         instance_set = set([fixedip.instance_uuid for fixedip in fixedips])
         default_gw_vif = {}
         for instance_uuid in instance_set:
-            vifs = vif_obj.VirtualInterfaceList.get_by_instance_uuid(context,
-                    instance_uuid)
+            vifs = objects.VirtualInterfaceList.get_by_instance_uuid(
+                    context, instance_uuid)
             if vifs:
                 #offer a default gateway to the first virtual interface
                 default_gw_vif[instance_uuid] = vifs[0].id
@@ -1275,12 +1273,14 @@ def _ip_bridge_cmd(action, params, device):
     return cmd
 
 
-def _set_device_mtu(dev):
+def _set_device_mtu(dev, mtu=None):
     """Set the device MTU."""
 
-    if CONF.network_device_mtu:
+    if not mtu:
+        mtu = CONF.network_device_mtu
+    if mtu:
         utils.execute('ip', 'link', 'set', dev, 'mtu',
-                      CONF.network_device_mtu, run_as_root=True,
+                      mtu, run_as_root=True,
                       check_exit_code=[0, 2, 254])
 
 
@@ -1424,7 +1424,8 @@ class LinuxBridgeInterfaceDriver(LinuxNetInterfaceDriver):
                            network['bridge'],
                            iface,
                            network,
-                           mac_address)
+                           mac_address,
+                           network.get('mtu'))
             iface = 'vlan%s' % vlan
         else:
             iface = CONF.flat_interface or network['bridge_interface']
@@ -1461,10 +1462,12 @@ class LinuxBridgeInterfaceDriver(LinuxNetInterfaceDriver):
 
     @staticmethod
     def ensure_vlan_bridge(vlan_num, bridge, bridge_interface,
-                           net_attrs=None, mac_address=None):
+                           net_attrs=None, mac_address=None,
+                           mtu=None):
         """Create a vlan and bridge unless they already exist."""
         interface = LinuxBridgeInterfaceDriver.ensure_vlan(vlan_num,
-                                               bridge_interface, mac_address)
+                                               bridge_interface, mac_address,
+                                               mtu)
         LinuxBridgeInterfaceDriver.ensure_bridge(bridge, interface, net_attrs)
         return interface
 
@@ -1476,7 +1479,7 @@ class LinuxBridgeInterfaceDriver(LinuxNetInterfaceDriver):
 
     @staticmethod
     @utils.synchronized('lock_vlan', external=True)
-    def ensure_vlan(vlan_num, bridge_interface, mac_address=None):
+    def ensure_vlan(vlan_num, bridge_interface, mac_address=None, mtu=None):
         """Create a vlan unless it already exists."""
         interface = 'vlan%s' % vlan_num
         if not device_exists(interface):
@@ -1493,7 +1496,9 @@ class LinuxBridgeInterfaceDriver(LinuxNetInterfaceDriver):
                          check_exit_code=[0, 2, 254])
             _execute('ip', 'link', 'set', interface, 'up', run_as_root=True,
                      check_exit_code=[0, 2, 254])
-            _set_device_mtu(interface)
+        # NOTE(vish): set mtu every time to ensure that changes to mtu get
+        #             propogated
+        _set_device_mtu(interface, mtu)
         return interface
 
     @staticmethod
@@ -1704,7 +1709,7 @@ class LinuxOVSInterfaceDriver(LinuxNetInterfaceDriver):
                         'external-ids:attached-mac=%s' % mac_address])
             _execute('ip', 'link', 'set', dev, 'address', mac_address,
                      run_as_root=True)
-            _set_device_mtu(dev)
+            _set_device_mtu(dev, network.get('mtu'))
             _execute('ip', 'link', 'set', dev, 'up', run_as_root=True)
             if not gateway:
                 # If we weren't instructed to act as a gateway then add the

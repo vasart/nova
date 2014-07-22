@@ -24,8 +24,8 @@ from nova.api.openstack import xmlutil
 from nova import compute
 from nova.compute import utils as compute_utils
 from nova import exception
+from nova.i18n import _
 from nova import network
-from nova.openstack.common.gettextutils import _
 from nova.openstack.common import log as logging
 from nova.openstack.common import uuidutils
 
@@ -163,6 +163,12 @@ class FloatingIPController(object):
             else:
                 msg = _("No more floating ips available.")
             raise webob.exc.HTTPNotFound(explanation=msg)
+        except exception.FloatingIpLimitExceeded:
+            if pool:
+                msg = _("IP allocation over quota in pool %s.") % pool
+            else:
+                msg = _("IP allocation over quota.")
+            raise webob.exc.HTTPForbidden(explanation=msg)
 
         return _translate_floating_ip_view(ip)
 

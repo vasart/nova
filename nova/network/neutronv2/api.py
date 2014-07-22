@@ -24,13 +24,13 @@ from nova.compute import flavors
 from nova.compute import utils as compute_utils
 from nova import conductor
 from nova import exception
+from nova.i18n import _
 from nova.network import base_api
 from nova.network import model as network_model
 from nova.network import neutronv2
 from nova.network.neutronv2 import constants
 from nova.network.security_group import openstack_driver
 from nova.openstack.common import excutils
-from nova.openstack.common.gettextutils import _
 from nova.openstack.common import log as logging
 from nova.openstack.common import uuidutils
 
@@ -387,8 +387,8 @@ class API(base_api.NetworkAPI):
         # and in later runs will only be what was created that time. Thus,
         # this only affects the attach case, not the original use for this
         # method.
-        return network_model.NetworkInfo([port for port in nw_info
-                                          if port['id'] in created_port_ids +
+        return network_model.NetworkInfo([vif for vif in nw_info
+                                          if vif['id'] in created_port_ids +
                                                            touched_port_ids])
 
     def _refresh_neutron_extensions_cache(self, context):
@@ -975,15 +975,15 @@ class API(base_api.NetworkAPI):
         pool = pool or CONF.default_floating_pool
         pool_id = self._get_floating_ip_pool_id_by_name_or_id(client, pool)
 
-        # TODO(amotoki): handle exception during create_floatingip()
-        # At this timing it is ensured that a network for pool exists.
-        # quota error may be returned.
         param = {'floatingip': {'floating_network_id': pool_id}}
         try:
             fip = client.create_floatingip(param)
         except (neutron_client_exc.IpAddressGenerationFailureClient,
                 neutron_client_exc.ExternalIpAddressExhaustedClient) as e:
             raise exception.NoMoreFloatingIps(unicode(e))
+        except neutron_client_exc.OverQuotaClient as e:
+            raise exception.FloatingIpLimitExceeded(unicode(e))
+
         return fip['floatingip']['floating_ip_address']
 
     def _get_floating_ip_by_address(self, client, address):

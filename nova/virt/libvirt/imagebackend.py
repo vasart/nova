@@ -17,15 +17,14 @@ import abc
 import contextlib
 import os
 
+from oslo.config import cfg
 import six
 
-from oslo.config import cfg
-
 from nova import exception
+from nova.i18n import _
+from nova.i18n import _LE
 from nova.openstack.common import excutils
 from nova.openstack.common import fileutils
-from nova.openstack.common.gettextutils import _
-from nova.openstack.common.gettextutils import _LE
 from nova.openstack.common import jsonutils
 from nova.openstack.common import log as logging
 from nova.openstack.common import units
@@ -296,6 +295,11 @@ class Image(object):
         except OSError as e:
             raise exception.DiskInfoReadWriteFail(reason=unicode(e))
         return driver_format
+
+    @staticmethod
+    def is_shared_block_storage():
+        """True if the backend puts images on a shared block storage."""
+        return False
 
 
 class Raw(Image):
@@ -648,10 +652,8 @@ class Rbd(Image):
         return False
 
     def _resize(self, volume_name, size):
-        size = int(size) * units.Ki
-
         with RBDVolumeProxy(self, volume_name) as vol:
-            vol.resize(size)
+            vol.resize(int(size))
 
     def create_image(self, prepare_template, base, size, *args, **kwargs):
         if self.rbd is None:
@@ -677,6 +679,10 @@ class Rbd(Image):
 
     def snapshot_extract(self, target, out_format):
         images.convert_image(self.path, target, out_format)
+
+    @staticmethod
+    def is_shared_block_storage():
+        return True
 
 
 class Backend(object):

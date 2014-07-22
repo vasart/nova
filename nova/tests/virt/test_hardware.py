@@ -23,6 +23,147 @@ class FakeFlavor():
         self.extra_specs = extra_specs
 
 
+class CpuSetTestCase(test.NoDBTestCase):
+    def test_get_vcpu_pin_set(self):
+        self.flags(vcpu_pin_set="1-3,5,^2")
+        cpuset_ids = hw.get_vcpu_pin_set()
+        self.assertEqual([1, 3, 5], cpuset_ids)
+
+    def test_parse_cpu_spec_none_returns_none(self):
+        self.flags(vcpu_pin_set=None)
+        cpuset_ids = hw.get_vcpu_pin_set()
+        self.assertIsNone(cpuset_ids)
+
+    def test_parse_cpu_spec_valid_syntax_works(self):
+        cpuset_ids = hw.parse_cpu_spec("1")
+        self.assertEqual(set([1]), cpuset_ids)
+
+        cpuset_ids = hw.parse_cpu_spec("1,2")
+        self.assertEqual(set([1, 2]), cpuset_ids)
+
+        cpuset_ids = hw.parse_cpu_spec(", ,   1 ,  ,,  2,    ,")
+        self.assertEqual(set([1, 2]), cpuset_ids)
+
+        cpuset_ids = hw.parse_cpu_spec("1-1")
+        self.assertEqual(set([1]), cpuset_ids)
+
+        cpuset_ids = hw.parse_cpu_spec(" 1 - 1, 1 - 2 , 1 -3")
+        self.assertEqual(set([1, 2, 3]), cpuset_ids)
+
+        cpuset_ids = hw.parse_cpu_spec("1,^2")
+        self.assertEqual(set([1]), cpuset_ids)
+
+        cpuset_ids = hw.parse_cpu_spec("1-2, ^1")
+        self.assertEqual(set([2]), cpuset_ids)
+
+        cpuset_ids = hw.parse_cpu_spec("1-3,5,^2")
+        self.assertEqual(set([1, 3, 5]), cpuset_ids)
+
+        cpuset_ids = hw.parse_cpu_spec(" 1 -    3        ,   ^2,        5")
+        self.assertEqual(set([1, 3, 5]), cpuset_ids)
+
+        cpuset_ids = hw.parse_cpu_spec(" 1,1, ^1")
+        self.assertEqual(set([]), cpuset_ids)
+
+    def test_parse_cpu_spec_invalid_syntax_raises(self):
+        self.assertRaises(exception.Invalid,
+                          hw.parse_cpu_spec,
+                          " -1-3,5,^2")
+
+        self.assertRaises(exception.Invalid,
+                          hw.parse_cpu_spec,
+                          "1-3-,5,^2")
+
+        self.assertRaises(exception.Invalid,
+                          hw.parse_cpu_spec,
+                          "-3,5,^2")
+
+        self.assertRaises(exception.Invalid,
+                          hw.parse_cpu_spec,
+                          "1-,5,^2")
+
+        self.assertRaises(exception.Invalid,
+                          hw.parse_cpu_spec,
+                          "1-3,5,^2^")
+
+        self.assertRaises(exception.Invalid,
+                          hw.parse_cpu_spec,
+                          "1-3,5,^2-")
+
+        self.assertRaises(exception.Invalid,
+                          hw.parse_cpu_spec,
+                          "--13,^^5,^2")
+
+        self.assertRaises(exception.Invalid,
+                          hw.parse_cpu_spec,
+                          "a-3,5,^2")
+
+        self.assertRaises(exception.Invalid,
+                          hw.parse_cpu_spec,
+                          "1-a,5,^2")
+
+        self.assertRaises(exception.Invalid,
+                          hw.parse_cpu_spec,
+                          "1-3,b,^2")
+
+        self.assertRaises(exception.Invalid,
+                          hw.parse_cpu_spec,
+                          "1-3,5,^c")
+
+        self.assertRaises(exception.Invalid,
+                          hw.parse_cpu_spec,
+                          "3 - 1, 5 , ^ 2 ")
+
+    def test_format_cpu_spec(self):
+        cpus = set([])
+        spec = hw.format_cpu_spec(cpus)
+        self.assertEqual("", spec)
+
+        cpus = []
+        spec = hw.format_cpu_spec(cpus)
+        self.assertEqual("", spec)
+
+        cpus = set([1, 3])
+        spec = hw.format_cpu_spec(cpus)
+        self.assertEqual("1,3", spec)
+
+        cpus = [1, 3]
+        spec = hw.format_cpu_spec(cpus)
+        self.assertEqual("1,3", spec)
+
+        cpus = set([1, 2, 4, 6])
+        spec = hw.format_cpu_spec(cpus)
+        self.assertEqual("1-2,4,6", spec)
+
+        cpus = [1, 2, 4, 6]
+        spec = hw.format_cpu_spec(cpus)
+        self.assertEqual("1-2,4,6", spec)
+
+        cpus = set([10, 11, 13, 14, 15, 16, 19, 20, 40, 42, 48])
+        spec = hw.format_cpu_spec(cpus)
+        self.assertEqual("10-11,13-16,19-20,40,42,48", spec)
+
+        cpus = [10, 11, 13, 14, 15, 16, 19, 20, 40, 42, 48]
+        spec = hw.format_cpu_spec(cpus)
+        self.assertEqual("10-11,13-16,19-20,40,42,48", spec)
+
+        cpus = set([1, 2, 4, 6])
+        spec = hw.format_cpu_spec(cpus, allow_ranges=False)
+        self.assertEqual("1,2,4,6", spec)
+
+        cpus = [1, 2, 4, 6]
+        spec = hw.format_cpu_spec(cpus, allow_ranges=False)
+        self.assertEqual("1,2,4,6", spec)
+
+        cpus = set([10, 11, 13, 14, 15, 16, 19, 20, 40, 42, 48])
+        spec = hw.format_cpu_spec(cpus, allow_ranges=False)
+        self.assertEqual("10,11,13,14,15,16,19,20,40,42,48", spec)
+
+        cpus = [10, 11, 13, 14, 15, 16, 19, 20, 40, 42, 48]
+        spec = hw.format_cpu_spec(cpus, allow_ranges=False)
+        self.assertEqual("10,11,13,14,15,16,19,20,40,42,48", spec)
+
+
 class VCPUTopologyTest(test.NoDBTestCase):
 
     def test_validate_config(self):
@@ -153,24 +294,24 @@ class VCPUTopologyTest(test.NoDBTestCase):
             },
         ]
 
-        for test in testdata:
-            if type(test["expect"]) == tuple:
+        for topo_test in testdata:
+            if type(topo_test["expect"]) == tuple:
                 (preferred,
                  maximum) = hw.VirtCPUTopology.get_topology_constraints(
-                     test["flavor"],
-                     test["image"])
+                     topo_test["flavor"],
+                     topo_test["image"])
 
-                self.assertEqual(test["expect"][0], preferred.sockets)
-                self.assertEqual(test["expect"][1], preferred.cores)
-                self.assertEqual(test["expect"][2], preferred.threads)
-                self.assertEqual(test["expect"][3], maximum.sockets)
-                self.assertEqual(test["expect"][4], maximum.cores)
-                self.assertEqual(test["expect"][5], maximum.threads)
+                self.assertEqual(topo_test["expect"][0], preferred.sockets)
+                self.assertEqual(topo_test["expect"][1], preferred.cores)
+                self.assertEqual(topo_test["expect"][2], preferred.threads)
+                self.assertEqual(topo_test["expect"][3], maximum.sockets)
+                self.assertEqual(topo_test["expect"][4], maximum.cores)
+                self.assertEqual(topo_test["expect"][5], maximum.threads)
             else:
-                self.assertRaises(test["expect"],
+                self.assertRaises(topo_test["expect"],
                                   hw.VirtCPUTopology.get_topology_constraints,
-                                  test["flavor"],
-                                  test["image"])
+                                  topo_test["flavor"],
+                                  topo_test["image"])
 
     def test_possible_configs(self):
         testdata = [
@@ -259,28 +400,28 @@ class VCPUTopologyTest(test.NoDBTestCase):
             },
         ]
 
-        for test in testdata:
-            if type(test["expect"]) == list:
+        for topo_test in testdata:
+            if type(topo_test["expect"]) == list:
                 actual = []
                 for topology in hw.VirtCPUTopology.get_possible_topologies(
-                        test["vcpus"],
-                        hw.VirtCPUTopology(test["maxsockets"],
-                                           test["maxcores"],
-                                           test["maxthreads"]),
-                        test["allow_threads"]):
+                        topo_test["vcpus"],
+                        hw.VirtCPUTopology(topo_test["maxsockets"],
+                                           topo_test["maxcores"],
+                                           topo_test["maxthreads"]),
+                        topo_test["allow_threads"]):
                     actual.append([topology.sockets,
                                    topology.cores,
                                    topology.threads])
 
-                self.assertEqual(test["expect"], actual)
+                self.assertEqual(topo_test["expect"], actual)
             else:
-                self.assertRaises(test["expect"],
+                self.assertRaises(topo_test["expect"],
                                   hw.VirtCPUTopology.get_possible_topologies,
-                                  test["vcpus"],
-                                  hw.VirtCPUTopology(test["maxsockets"],
-                                                     test["maxcores"],
-                                                     test["maxthreads"]),
-                                  test["allow_threads"])
+                                  topo_test["vcpus"],
+                                  hw.VirtCPUTopology(topo_test["maxsockets"],
+                                                     topo_test["maxcores"],
+                                                     topo_test["maxthreads"]),
+                                  topo_test["allow_threads"])
 
     def test_sorting_configs(self):
         testdata = [
@@ -351,26 +492,26 @@ class VCPUTopologyTest(test.NoDBTestCase):
             },
         ]
 
-        for test in testdata:
+        for topo_test in testdata:
             actual = []
             possible = hw.VirtCPUTopology.get_possible_topologies(
-                test["vcpus"],
-                hw.VirtCPUTopology(test["maxsockets"],
-                                   test["maxcores"],
-                                   test["maxthreads"]),
-                test["allow_threads"])
+                topo_test["vcpus"],
+                hw.VirtCPUTopology(topo_test["maxsockets"],
+                                   topo_test["maxcores"],
+                                   topo_test["maxthreads"]),
+                topo_test["allow_threads"])
 
             tops = hw.VirtCPUTopology.sort_possible_topologies(
                 possible,
-                hw.VirtCPUTopology(test["sockets"],
-                                   test["cores"],
-                                   test["threads"]))
+                hw.VirtCPUTopology(topo_test["sockets"],
+                                   topo_test["cores"],
+                                   topo_test["threads"]))
             for topology in tops:
                 actual.append([topology.sockets,
                                topology.cores,
                                topology.threads])
 
-            self.assertEqual(test["expect"], actual)
+            self.assertEqual(topo_test["expect"], actual)
 
     def test_best_config(self):
         testdata = [
@@ -485,12 +626,12 @@ class VCPUTopologyTest(test.NoDBTestCase):
             },
         ]
 
-        for test in testdata:
+        for topo_test in testdata:
             topology = hw.VirtCPUTopology.get_desirable_configs(
-                test["flavor"],
-                test["image"],
-                test["allow_threads"])[0]
+                topo_test["flavor"],
+                topo_test["image"],
+                topo_test["allow_threads"])[0]
 
-            self.assertEqual(test["expect"][0], topology.sockets)
-            self.assertEqual(test["expect"][1], topology.cores)
-            self.assertEqual(test["expect"][2], topology.threads)
+            self.assertEqual(topo_test["expect"][0], topology.sockets)
+            self.assertEqual(topo_test["expect"][1], topology.cores)
+            self.assertEqual(topo_test["expect"][2], topology.threads)

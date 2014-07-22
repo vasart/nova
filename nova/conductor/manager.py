@@ -31,6 +31,7 @@ from nova.compute import vm_states
 from nova.conductor.tasks import live_migrate
 from nova.db import base
 from nova import exception
+from nova.i18n import _
 from nova import image
 from nova import manager
 from nova import network
@@ -38,9 +39,7 @@ from nova.network.security_group import openstack_driver
 from nova import notifications
 from nova import objects
 from nova.objects import base as nova_object
-from nova.objects import quotas as quotas_obj
 from nova.openstack.common import excutils
-from nova.openstack.common.gettextutils import _
 from nova.openstack.common import jsonutils
 from nova.openstack.common import log as logging
 from nova.openstack.common import timeutils
@@ -204,9 +203,9 @@ class ConductorManager(manager.Manager):
             bdm = self.db.block_device_mapping_update(context,
                                                       values['id'],
                                                       values)
-        # NOTE:comstud): 'bdm' is always in the new format, so we
-        # account for this in cells/messaging.py
-        self.cells_rpcapi.bdm_update_or_create_at_top(context, bdm,
+        bdm_obj = objects.BlockDeviceMapping._from_db_object(
+                context, objects.BlockDeviceMapping(), bdm)
+        self.cells_rpcapi.bdm_update_or_create_at_top(context, bdm_obj,
                                                       create=create)
 
     def block_device_mapping_get_all_by_instance(self, context, instance,
@@ -452,7 +451,7 @@ class ComputeTaskManager(base.Base):
     may involve coordinating activities on multiple compute nodes.
     """
 
-    target = messaging.Target(namespace='compute_task', version='1.7')
+    target = messaging.Target(namespace='compute_task', version='1.8')
 
     def __init__(self):
         super(ComputeTaskManager, self).__init__()
@@ -503,9 +502,9 @@ class ComputeTaskManager(base.Base):
         request_spec = scheduler_utils.build_request_spec(
             context, image, [instance], instance_type=flavor)
 
-        quotas = quotas_obj.Quotas.from_reservations(context,
-                                                     reservations,
-                                                     instance=instance)
+        quotas = objects.Quotas.from_reservations(context,
+                                                  reservations,
+                                                  instance=instance)
         try:
             scheduler_utils.populate_retry(filter_properties, instance['uuid'])
             hosts = self.scheduler_rpcapi.select_destinations(
@@ -520,9 +519,8 @@ class ComputeTaskManager(base.Base):
                                           updates, ex, request_spec)
             quotas.rollback()
 
-            LOG.warning(_("No valid host found for cold migrate"),
-                        instance=instance)
-            return
+            msg = _("No valid host found for cold migrate")
+            raise exception.NoValidHost(reason=msg)
 
         try:
             scheduler_utils.populate_filter_properties(filter_properties,
@@ -709,3 +707,44 @@ class ComputeTaskManager(base.Base):
                 del(sys_meta[key])
         instance.system_metadata = sys_meta
         instance.save()
+
+    def rebuild_instance(self, context, instance, orig_image_ref, image_ref,
+                         injected_files, new_pass, orig_sys_metadata,
+                         bdms, recreate, on_shared_storage,
+                         preserve_ephemeral=False, host=None):
+
+        with compute_utils.EventReporter(context, 'rebuild_server',
+                                          instance.uuid):
+            if not host:
+                # NOTE(lcostantino): Retrieve scheduler filters for the
+                # instance when the feature is available
+                filter_properties = {'ignore_hosts': [instance.host]}
+                request_spec = scheduler_utils.build_request_spec(context,
+                                                                  image_ref,
+                                                                  [instance])
+                try:
+                    hosts = self.scheduler_rpcapi.select_destinations(context,
+                                                            request_spec,
+                                                            filter_properties)
+                    host = hosts.pop(0)['host']
+                except exception.NoValidHost as ex:
+                    with excutils.save_and_reraise_exception():
+                        self._set_vm_state_and_notify(context,
+                                'rebuild_server',
+                                {'vm_state': instance.vm_state,
+                                 'task_state': None}, ex, request_spec)
+                        LOG.warning(_("No valid host found for rebuild"),
+                                      instance=instance)
+
+            self.compute_rpcapi.rebuild_instance(context,
+                    instance=instance,
+                    new_pass=new_pass,
+                    injected_files=injected_files,
+                    image_ref=image_ref,
+                    orig_image_ref=orig_image_ref,
+                    orig_sys_metadata=orig_sys_metadata,
+                    bdms=bdms,
+                    recreate=recreate,
+                    on_shared_storage=on_shared_storage,
+                    preserve_ephemeral=preserve_ephemeral,
+                    host=host)

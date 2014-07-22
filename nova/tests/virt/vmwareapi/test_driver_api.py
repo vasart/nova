@@ -38,6 +38,7 @@ from nova.compute import vm_states
 from nova import context
 from nova import exception
 from nova.image import glance
+from nova.network import model as network_model
 from nova.openstack.common import jsonutils
 from nova.openstack.common import timeutils
 from nova.openstack.common import units
@@ -48,6 +49,8 @@ import nova.tests.image.fake
 from nova.tests import matchers
 from nova.tests import test_flavors
 from nova.tests import utils
+from nova.tests.virt import test_driver
+from nova.tests.virt.vmwareapi import fake as vmwareapi_fake
 from nova.tests.virt.vmwareapi import stubs
 from nova import utils as nova_utils
 from nova.virt import driver as v_driver
@@ -55,9 +58,9 @@ from nova.virt import fake
 from nova.virt.vmwareapi import driver
 from nova.virt.vmwareapi import ds_util
 from nova.virt.vmwareapi import error_util
-from nova.virt.vmwareapi import fake as vmwareapi_fake
 from nova.virt.vmwareapi import imagecache
 from nova.virt.vmwareapi import read_write_util
+from nova.virt.vmwareapi import vif
 from nova.virt.vmwareapi import vim
 from nova.virt.vmwareapi import vim_util
 from nova.virt.vmwareapi import vm_util
@@ -564,7 +567,8 @@ class VMwareAPIVMTestCase(test.NoDBTestCase):
 
         found_vm_uuid = False
         found_iface_id = False
-        for c in vm.get("config.extraConfig").OptionValue:
+        extras = vm.get("config.extraConfig")
+        for c in extras.OptionValue:
             if (c.key == "nvp.vm-uuid" and c.value == self.instance['uuid']):
                 found_vm_uuid = True
             if (c.key == "nvp.iface-id.0" and c.value == "vif-xxx-yyy-zzz"):
@@ -723,6 +727,12 @@ class VMwareAPIVMTestCase(test.NoDBTestCase):
         info = self.conn.get_info({'uuid': self.uuid,
                                    'node': self.instance_node})
         self._check_vm_info(info, power_state.RUNNING)
+
+    def test_spawn_vm_ref_cached(self):
+        uuid = uuidutils.generate_uuid()
+        self.assertIsNone(vm_util.vm_ref_cache_get(uuid))
+        self._create_vm(uuid=uuid)
+        self.assertIsNotNone(vm_util.vm_ref_cache_get(uuid))
 
     def _spawn_power_state(self, power_on):
         self._spawn = self.conn._vmops.spawn
@@ -1508,7 +1518,6 @@ class VMwareAPIVMTestCase(test.NoDBTestCase):
                               self.network_info,
                               None, self.destroy_disks)
             mock_destroy.assert_called_once_with(self.instance,
-                                                 self.network_info,
                                                  self.destroy_disks)
 
     def test_destroy_instance_without_compute(self):
@@ -1673,6 +1682,22 @@ class VMwareAPIVMTestCase(test.NoDBTestCase):
                 self.conn.get_diagnostics({'name': 1, 'uuid': self.uuid,
                                            'node': self.instance_node}),
                 matchers.DictMatches(expected))
+
+    def test_get_instance_diagnostics(self):
+        self._create_vm()
+        expected = {'uptime': 0,
+                    'memory_details': {'used': 0, 'maximum': 512},
+                    'nic_details': [],
+                    'driver': 'vmwareapi',
+                    'state': 'running',
+                    'version': '1.0',
+                    'cpu_details': [],
+                    'disk_details': [],
+                    'hypervisor_os': 'esxi',
+                    'config_drive': False}
+        actual = self.conn.get_instance_diagnostics(
+                {'name': 1, 'uuid': self.uuid, 'node': self.instance_node})
+        self.assertThat(actual.serialize(), matchers.DictMatches(expected))
 
     def test_get_console_output(self):
         self.assertRaises(NotImplementedError, self.conn.get_console_output,
@@ -2051,7 +2076,8 @@ class VMwareAPIVMTestCase(test.NoDBTestCase):
         self._cached_files_exist()
 
 
-class VMwareAPIHostTestCase(test.NoDBTestCase):
+class VMwareAPIHostTestCase(test.NoDBTestCase,
+                            test_driver.DriverAPITestHelper):
     """Unit tests for Vmware API host calls."""
 
     def setUp(self):
@@ -2068,6 +2094,9 @@ class VMwareAPIHostTestCase(test.NoDBTestCase):
     def tearDown(self):
         super(VMwareAPIHostTestCase, self).tearDown()
         vmwareapi_fake.cleanup()
+
+    def test_public_api_signatures(self):
+        self.assertPublicAPISignatures(self.conn)
 
     def test_host_state(self):
         stats = self.conn.get_host_stats()
@@ -2106,7 +2135,8 @@ class VMwareAPIHostTestCase(test.NoDBTestCase):
         self.assertEqual('Please refer to test_url for the uptime', result)
 
 
-class VMwareAPIVCDriverTestCase(VMwareAPIVMTestCase):
+class VMwareAPIVCDriverTestCase(VMwareAPIVMTestCase,
+                                test_driver.DriverAPITestHelper):
 
     def setUp(self):
         super(VMwareAPIVCDriverTestCase, self).setUp()
@@ -2131,6 +2161,9 @@ class VMwareAPIVCDriverTestCase(VMwareAPIVMTestCase):
     def tearDown(self):
         super(VMwareAPIVCDriverTestCase, self).tearDown()
         vmwareapi_fake.cleanup()
+
+    def test_public_api_signatures(self):
+        self.assertPublicAPISignatures(self.conn)
 
     def test_list_instances(self):
         instances = self.conn.list_instances()
@@ -2284,13 +2317,16 @@ class VMwareAPIVCDriverTestCase(VMwareAPIVMTestCase):
         uuidutils.generate_uuid().AndReturn(uuid_str)
 
         self.mox.StubOutWithMock(ds_util, 'file_delete')
+        disk_ds_path = ds_util.DatastorePath(
+                self.ds, "vmware_temp", "%s.vmdk" % uuid_str)
+        disk_ds_flat_path = ds_util.DatastorePath(
+                self.ds, "vmware_temp", "%s-flat.vmdk" % uuid_str)
         # Check calls for delete vmdk and -flat.vmdk pair
-        ds_util.file_delete(mox.IgnoreArg(),
-                "[%s] vmware_temp/%s-flat.vmdk" % (self.ds, uuid_str),
+        ds_util.file_delete(
+                mox.IgnoreArg(), disk_ds_flat_path,
                 mox.IgnoreArg()).AndReturn(None)
-        ds_util.file_delete(mox.IgnoreArg(),
-                "[%s] vmware_temp/%s.vmdk" % (self.ds, uuid_str),
-                mox.IgnoreArg()).AndReturn(None)
+        ds_util.file_delete(
+                mox.IgnoreArg(), disk_ds_path, mox.IgnoreArg()).AndReturn(None)
 
         self.mox.ReplayAll()
         self._test_snapshot()
@@ -2343,6 +2379,117 @@ class VMwareAPIVCDriverTestCase(VMwareAPIVMTestCase):
         self.assertRaises(NotImplementedError,
                           self.conn.unplug_vifs,
                           instance=self.instance, network_info=None)
+
+    def _create_vif(self):
+        gw_4 = network_model.IP(address='101.168.1.1', type='gateway')
+        dns_4 = network_model.IP(address='8.8.8.8', type=None)
+        subnet_4 = network_model.Subnet(cidr='101.168.1.0/24',
+                                        dns=[dns_4],
+                                        gateway=gw_4,
+                                        routes=None,
+                                        dhcp_server='191.168.1.1')
+
+        gw_6 = network_model.IP(address='101:1db9::1', type='gateway')
+        subnet_6 = network_model.Subnet(cidr='101:1db9::/64',
+                                        dns=None,
+                                        gateway=gw_6,
+                                        ips=None,
+                                        routes=None)
+
+        network_neutron = network_model.Network(id='network-id-xxx-yyy-zzz',
+                                                bridge=None,
+                                                label=None,
+                                                subnets=[subnet_4,
+                                                         subnet_6],
+                                                bridge_interface='eth0',
+                                                vlan=99)
+
+        vif_bridge_neutron = network_model.VIF(id='new-vif-xxx-yyy-zzz',
+                                               address='ca:fe:de:ad:be:ef',
+                                               network=network_neutron,
+                                               type=None,
+                                               devname='tap-xxx-yyy-zzz',
+                                               ovs_interfaceid='aaa-bbb-ccc')
+        return vif_bridge_neutron
+
+    def _validate_interfaces(self, id, index, num_iface_ids):
+        vm = self._get_vm_record()
+        found_iface_id = False
+        extras = vm.get("config.extraConfig")
+        key = "nvp.iface-id.%s" % index
+        num_found = 0
+        for c in extras.OptionValue:
+            if c.key.startswith("nvp.iface-id."):
+                num_found += 1
+                if c.key == key and c.value == id:
+                    found_iface_id = True
+        self.assertTrue(found_iface_id)
+        self.assertEqual(num_found, num_iface_ids)
+
+    def _attach_interface(self, vif):
+        self.conn.attach_interface(self.instance, self.image, vif)
+        self._validate_interfaces(vif['id'], 1, 2)
+
+    def test_attach_interface(self):
+        self._create_vm()
+        vif = self._create_vif()
+        self._attach_interface(vif)
+
+    def test_attach_interface_with_exception(self):
+        self._create_vm()
+        vif = self._create_vif()
+
+        with mock.patch.object(self.conn._session, '_wait_for_task',
+                               side_effect=Exception):
+            self.assertRaises(exception.InterfaceAttachFailed,
+                              self.conn.attach_interface,
+                              self.instance, self.image, vif)
+
+    @mock.patch.object(vif, 'get_network_device',
+                       return_value='fake_device')
+    def _detach_interface(self, vif, mock_get_device):
+        self._create_vm()
+        self._attach_interface(vif)
+        self.conn.detach_interface(self.instance, vif)
+        self._validate_interfaces('free', 1, 2)
+
+    def test_detach_interface(self):
+        vif = self._create_vif()
+        self._detach_interface(vif)
+
+    def test_detach_interface_and_attach(self):
+        vif = self._create_vif()
+        self._detach_interface(vif)
+        self.conn.attach_interface(self.instance, self.image, vif)
+        self._validate_interfaces(vif['id'], 1, 2)
+
+    def test_detach_interface_no_device(self):
+        self._create_vm()
+        vif = self._create_vif()
+        self._attach_interface(vif)
+        self.assertRaises(exception.NotFound, self.conn.detach_interface,
+                          self.instance, vif)
+
+    def test_detach_interface_no_vif_match(self):
+        self._create_vm()
+        vif = self._create_vif()
+        self._attach_interface(vif)
+        vif['id'] = 'bad-id'
+        self.assertRaises(exception.NotFound, self.conn.detach_interface,
+                          self.instance, vif)
+
+    @mock.patch.object(vif, 'get_network_device',
+                       return_value='fake_device')
+    def test_detach_interface_with_exception(self, mock_get_device):
+        self._create_vm()
+        vif = self._create_vif()
+        self._attach_interface(vif)
+
+        with mock.patch.object(self.conn._session, '_wait_for_task',
+                               side_effect=Exception):
+            self.assertRaises(exception.InterfaceDetachFailed,
+                              self.conn.detach_interface,
+                              self.instance, vif)
 
     def test_migrate_disk_and_power_off(self):
         def fake_update_instance_progress(context, instance, step,
@@ -2491,7 +2638,6 @@ class VMwareAPIVCDriverTestCase(VMwareAPIVMTestCase):
                               self.network_info,
                               None, self.destroy_disks)
             mock_destroy.assert_called_once_with(self.instance,
-                                                 self.network_info,
                                                  self.destroy_disks)
 
     def test_destroy_instance_without_compute(self):

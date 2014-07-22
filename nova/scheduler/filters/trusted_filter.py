@@ -50,7 +50,7 @@ from oslo.config import cfg
 
 from nova import context
 from nova import db
-from nova.openstack.common.gettextutils import _
+from nova.i18n import _
 from nova.openstack.common import jsonutils
 from nova.openstack.common import log as logging
 from nova.openstack.common import timeutils
@@ -178,7 +178,7 @@ class AttestationService(object):
         result = None
 
         status, data = self._request("POST", "PollHosts", hosts)
-        if data != None:
+        if data is not None:
             result = data.get('hosts')
 
         return result

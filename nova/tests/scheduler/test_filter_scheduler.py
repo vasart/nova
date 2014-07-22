@@ -17,9 +17,9 @@ Tests For Filter Scheduler.
 """
 
 import contextlib
-import mock
 import uuid
 
+import mock
 import mox
 
 from nova.compute import utils as compute_utils
@@ -27,7 +27,7 @@ from nova.compute import vm_states
 from nova import context
 from nova import db
 from nova import exception
-from nova.objects import instance_group as instance_group_obj
+from nova import objects
 from nova.pci import pci_request
 from nova.scheduler import driver
 from nova.scheduler import filter_scheduler
@@ -135,8 +135,7 @@ class FilterSchedulerTestCase(test_scheduler.SchedulerTestCase):
         expected_filter_properties = {'retry': {'num_attempts': 1,
                                                 'hosts': []}}
         self.driver._schedule(fake_context, request_spec,
-                expected_filter_properties,
-                ['fake-uuid1', 'fake-uuid2']).AndReturn(['host1', 'host2'])
+                expected_filter_properties).AndReturn(['host1', 'host2'])
         # instance 1
         self.driver._provision_resource(
             fake_context, 'host1',
@@ -214,8 +213,8 @@ class FilterSchedulerTestCase(test_scheduler.SchedulerTestCase):
         self.mox.StubOutWithMock(sched, '_schedule')
         self.mox.StubOutWithMock(sched, '_provision_resource')
 
-        sched._schedule(self.context, request_spec, filter_properties,
-                ['fake-uuid1']).AndReturn(['host1'])
+        sched._schedule(self.context, request_spec,
+                        filter_properties).AndReturn(['host1'])
         sched._provision_resource(
             self.context, 'host1',
             request_spec, filter_properties,
@@ -239,8 +238,8 @@ class FilterSchedulerTestCase(test_scheduler.SchedulerTestCase):
         self.mox.StubOutWithMock(sched, '_schedule')
         self.mox.StubOutWithMock(sched, '_provision_resource')
 
-        sched._schedule(self.context, request_spec, filter_properties,
-                ['fake-uuid1']).AndReturn(['host1'])
+        sched._schedule(self.context, request_spec,
+                        filter_properties).AndReturn(['host1'])
         sched._provision_resource(
             self.context, 'host1',
             request_spec, filter_properties,
@@ -264,8 +263,8 @@ class FilterSchedulerTestCase(test_scheduler.SchedulerTestCase):
         self.mox.StubOutWithMock(sched, '_schedule')
         self.mox.StubOutWithMock(sched, '_provision_resource')
 
-        sched._schedule(self.context, request_spec, filter_properties,
-                ['fake-uuid1']).AndReturn(['host1'])
+        sched._schedule(self.context, request_spec,
+                        filter_properties).AndReturn(['host1'])
         sched._provision_resource(
             self.context, 'host1',
             request_spec, filter_properties,
@@ -290,8 +289,8 @@ class FilterSchedulerTestCase(test_scheduler.SchedulerTestCase):
         self.mox.StubOutWithMock(sched, '_schedule')
         self.mox.StubOutWithMock(sched, '_provision_resource')
 
-        sched._schedule(self.context, request_spec, expected_filter_properties,
-                        ['fake-uuid1']).AndReturn(['host1'])
+        sched._schedule(self.context, request_spec,
+                        expected_filter_properties).AndReturn(['host1'])
         sched._provision_resource(
             self.context, 'host1',
             request_spec, expected_filter_properties,
@@ -315,8 +314,8 @@ class FilterSchedulerTestCase(test_scheduler.SchedulerTestCase):
         self.mox.StubOutWithMock(sched, '_schedule')
         self.mox.StubOutWithMock(sched, '_provision_resource')
 
-        sched._schedule(self.context, request_spec, expected_filter_properties,
-                        ['fake-uuid1']).AndReturn(['host1'])
+        sched._schedule(self.context, request_spec,
+                        expected_filter_properties).AndReturn(['host1'])
         sched._provision_resource(
             self.context, 'host1',
             request_spec, expected_filter_properties,
@@ -376,7 +375,7 @@ class FilterSchedulerTestCase(test_scheduler.SchedulerTestCase):
         instance = fake_instance.fake_instance_obj(self.context,
                 params={'host': 'hostA'})
 
-        group = instance_group_obj.InstanceGroup()
+        group = objects.InstanceGroup()
         group.name = 'pele'
         group.uuid = str(uuid.uuid4())
         group.members = [instance.uuid]
@@ -394,10 +393,9 @@ class FilterSchedulerTestCase(test_scheduler.SchedulerTestCase):
         }
 
         with contextlib.nested(
-            mock.patch.object(instance_group_obj.InstanceGroup, func,
-                               return_value=group),
-            mock.patch.object(instance_group_obj.InstanceGroup, 'get_hosts',
-                               return_value=['hostA']),
+            mock.patch.object(objects.InstanceGroup, func, return_value=group),
+            mock.patch.object(objects.InstanceGroup, 'get_hosts',
+                              return_value=['hostA']),
         ) as (get_group, get_hosts):
             update_group_hosts = sched._setup_instance_group(self.context,
                     filter_properties)

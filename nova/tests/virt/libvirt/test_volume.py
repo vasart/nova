@@ -14,10 +14,10 @@
 #    under the License.
 
 import contextlib
-import fixtures
 import os
 import time
 
+import fixtures
 import mock
 from oslo.config import cfg
 
@@ -342,6 +342,26 @@ class LibvirtVolumeTestCase(test.NoDBTestCase):
             mock_run_multipath.assert_called_once_with(
                                             ['-f', 'fake-multipath-devname'],
                                             check_exit_code=[0, 1])
+
+    def test_sanitize_log_run_iscsiadm(self):
+        # Tests that the parameters to the _run_iscsiadm function are sanitized
+        # for passwords when logged.
+        def fake_debug(*args, **kwargs):
+            self.assertIn('node.session.auth.password', args[0])
+            self.assertNotIn('scrubme', args[0])
+
+        libvirt_driver = volume.LibvirtISCSIVolumeDriver(self.fake_conn)
+        connection_info = self.iscsi_connection(self.vol, self.location,
+                                                self.iqn)
+        iscsi_properties = connection_info['data']
+        with mock.patch.object(volume.LOG, 'debug',
+                               side_effect=fake_debug) as debug_mock:
+            libvirt_driver._iscsiadm_update(iscsi_properties,
+                                            'node.session.auth.password',
+                                            'scrubme')
+            # we don't care what the log message is, we just want to make sure
+            # our stub method is called which asserts the password is scrubbed
+            self.assertTrue(debug_mock.called)
 
     def iser_connection(self, volume, location, iqn):
         return {

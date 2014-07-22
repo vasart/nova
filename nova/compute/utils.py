@@ -15,7 +15,6 @@
 """Compute-related Utilities and helpers."""
 
 import itertools
-import re
 import string
 import traceback
 
@@ -26,11 +25,11 @@ from nova.compute import flavors
 from nova.compute import power_state
 from nova.compute import task_states
 from nova import exception
+from nova.i18n import _
 from nova.network import model as network_model
 from nova import notifications
 from nova import objects
 from nova.objects import base as obj_base
-from nova.openstack.common.gettextutils import _
 from nova.openstack.common import log
 from nova import rpc
 from nova import utils
@@ -163,10 +162,7 @@ def get_next_device_name(instance, device_name_list,
 
     used_letters = set()
     for device_path in device_name_list:
-        letter = block_device.strip_prefix(device_path)
-        # NOTE(vish): delete numbers in case we have something like
-        #             /dev/sda1
-        letter = re.sub("\d+", "", letter)
+        letter = block_device.get_device_letter(device_path)
         used_letters.add(letter)
 
     # NOTE(vish): remove this when xenapi is properly setting

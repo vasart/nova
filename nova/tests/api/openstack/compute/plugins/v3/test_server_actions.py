@@ -93,7 +93,6 @@ class ServerActionsControllerTest(test.TestCase):
         service_class = 'nova.image.glance.GlanceImageService'
         self.service = importutils.import_object(service_class)
         self.sent_to_glance = {}
-        fakes.stub_out_glanceclient_create(self.stubs, self.sent_to_glance)
         self.flags(allow_instance_snapshots=True,
                    enable_instance_password=True)
         self.uuid = FAKE_UUID
@@ -910,7 +909,7 @@ class ServerActionsControllerTest(test.TestCase):
         self.assertEqual(bdms[0]['snapshot_id'], snapshot['id'])
         for fld in ('connection_info', 'id',
                     'instance_uuid', 'device_name'):
-            self.assertTrue(fld not in bdms[0])
+            self.assertNotIn(fld, bdms[0])
         for k in extra_properties.keys():
             self.assertEqual(properties[k], extra_properties[k])
 

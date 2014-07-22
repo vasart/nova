@@ -25,9 +25,9 @@ import platform
 from lxml import etree
 from oslo.config import cfg
 
-from nova.openstack.common.gettextutils import _
-from nova.openstack.common.gettextutils import _LI
-from nova.openstack.common.gettextutils import _LW
+from nova.i18n import _
+from nova.i18n import _LI
+from nova.i18n import _LW
 from nova.openstack.common import log as logging
 from nova.openstack.common import processutils
 from nova import utils
@@ -235,7 +235,13 @@ def list_rbd_volumes(pool):
 def remove_rbd_volumes(pool, *names):
     """Remove one or more rbd volume."""
     for name in names:
-        rbd_remove = ['rbd', '-p', pool, 'rm', name]
+        # NOTE(nic): the rbd command supports two methods for
+        # specifying a pool name: the "-p" flag, and using the volume
+        # name notation "pool_name/volume_name"
+        # The latter method supercedes the former, so to guard
+        # against slashes in the volume name confusing things, always
+        # use the path notation
+        rbd_remove = ('rbd', 'rm', os.path.join(pool, name))
         try:
             _run_rbd(*rbd_remove, attempts=3, run_as_root=True)
         except processutils.ProcessExecutionError:

@@ -24,7 +24,7 @@ from nova.api.openstack import wsgi
 from nova import compute
 from nova.compute import vm_states
 from nova import exception
-from nova.openstack.common.gettextutils import _
+from nova.i18n import _
 from nova.openstack.common import log as logging
 from nova.openstack.common import strutils
 
@@ -159,6 +159,8 @@ class AdminActionsController(wsgi.Controller):
                     'migrate')
         except exception.InstanceNotFound as e:
             raise exc.HTTPNotFound(explanation=e.format_message())
+        except exception.NoValidHost as e:
+            raise exc.HTTPBadRequest(explanation=e.format_message())
         except Exception as e:
             LOG.exception(_("Error in migrate %s"), e)
             raise exc.HTTPBadRequest()

@@ -27,8 +27,8 @@ from nova.compute import power_state
 from nova.compute import task_states
 from nova import context as nova_context
 from nova import exception
+from nova.i18n import _
 from nova.openstack.common import excutils
-from nova.openstack.common.gettextutils import _
 from nova.openstack.common import importutils
 from nova.openstack.common import jsonutils
 from nova.openstack.common import lockutils
@@ -366,7 +366,8 @@ class BareMetalDriver(driver.ComputeDriver):
                 "for instance %r") % instance['uuid'])
         _update_state(ctx, node, instance, state)
 
-    def destroy(self, context, instance, network_info, block_device_info=None):
+    def destroy(self, context, instance, network_info, block_device_info=None,
+                destroy_disks=True, migrate_data=None):
         context = nova_context.get_admin_context()
 
         try:
@@ -399,7 +400,7 @@ class BareMetalDriver(driver.ComputeDriver):
                                 "baremetal database: %s") % e)
 
     def cleanup(self, context, instance, network_info, block_device_info=None,
-                destroy_disks=True):
+                destroy_disks=True, migrate_data=None):
         """Cleanup after instance being destroyed."""
         pass
 

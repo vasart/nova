@@ -38,6 +38,7 @@ policy_data = """
 
     "compute:get_instance_faults": "",
     "compute:get_diagnostics": "",
+    "compute:get_instance_diagnostics": "",
 
     "compute:get_lock": "",
     "compute:lock": "",
@@ -57,6 +58,9 @@ policy_data = """
 
     "compute:attach_volume": "",
     "compute:detach_volume": "",
+
+    "compute:attach_interface": "",
+    "compute:detach_interface": "",
 
     "compute:set_admin_password": "",
 

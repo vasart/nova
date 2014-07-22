@@ -338,20 +338,20 @@ class MonkeyPatchTestCase(test.NoDBTestCase):
 
         self.assertEqual(ret_b, 8)
         package_a = self.example_package + 'example_a.'
-        self.assertTrue(package_a + 'example_function_a'
-            in nova.tests.monkey_patch_example.CALLED_FUNCTION)
+        self.assertIn(package_a + 'example_function_a',
+                      nova.tests.monkey_patch_example.CALLED_FUNCTION)
 
-        self.assertTrue(package_a + 'ExampleClassA.example_method'
-            in nova.tests.monkey_patch_example.CALLED_FUNCTION)
-        self.assertTrue(package_a + 'ExampleClassA.example_method_add'
-            in nova.tests.monkey_patch_example.CALLED_FUNCTION)
+        self.assertIn(package_a + 'ExampleClassA.example_method',
+                        nova.tests.monkey_patch_example.CALLED_FUNCTION)
+        self.assertIn(package_a + 'ExampleClassA.example_method_add',
+                        nova.tests.monkey_patch_example.CALLED_FUNCTION)
         package_b = self.example_package + 'example_b.'
-        self.assertFalse(package_b + 'example_function_b'
-            in nova.tests.monkey_patch_example.CALLED_FUNCTION)
-        self.assertFalse(package_b + 'ExampleClassB.example_method'
-            in nova.tests.monkey_patch_example.CALLED_FUNCTION)
-        self.assertFalse(package_b + 'ExampleClassB.example_method_add'
-            in nova.tests.monkey_patch_example.CALLED_FUNCTION)
+        self.assertNotIn(package_b + 'example_function_b',
+                         nova.tests.monkey_patch_example.CALLED_FUNCTION)
+        self.assertNotIn(package_b + 'ExampleClassB.example_method',
+                         nova.tests.monkey_patch_example.CALLED_FUNCTION)
+        self.assertNotIn(package_b + 'ExampleClassB.example_method_add',
+                         nova.tests.monkey_patch_example.CALLED_FUNCTION)
 
 
 class MonkeyPatchDefaultTestCase(test.NoDBTestCase):
@@ -962,3 +962,10 @@ class VersionTestCase(test.NoDBTestCase):
 
     def test_convert_version_to_tuple(self):
         self.assertEqual(utils.convert_version_to_tuple('6.7.0'), (6, 7, 0))
+
+
+class ConstantTimeCompareTestCase(test.NoDBTestCase):
+    def test_constant_time_compare(self):
+        self.assertTrue(utils.constant_time_compare("abcd1234", "abcd1234"))
+        self.assertFalse(utils.constant_time_compare("abcd1234", "a"))
+        self.assertFalse(utils.constant_time_compare("abcd1234", "ABCD234"))

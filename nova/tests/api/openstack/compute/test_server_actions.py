@@ -16,6 +16,7 @@
 import base64
 import uuid
 
+import mock
 import mox
 from oslo.config import cfg
 import webob
@@ -94,7 +95,6 @@ class ServerActionsControllerTest(test.TestCase):
         service_class = 'nova.image.glance.GlanceImageService'
         self.service = importutils.import_object(service_class)
         self.sent_to_glance = {}
-        fakes.stub_out_glanceclient_create(self.stubs, self.sent_to_glance)
         self.flags(allow_instance_snapshots=True,
                    enable_instance_password=True)
         self.uuid = FAKE_UUID
@@ -866,6 +866,16 @@ class ServerActionsControllerTest(test.TestCase):
                           self.controller._action_resize,
                           req, FAKE_UUID, body)
 
+    @mock.patch('nova.compute.api.API.resize',
+                side_effect=exception.NoValidHost(reason=''))
+    def test_resize_raises_no_valid_host(self, mock_resize):
+        body = dict(resize=dict(flavorRef="http://localhost/3"))
+
+        req = fakes.HTTPRequest.blank(self.url)
+        self.assertRaises(webob.exc.HTTPBadRequest,
+                          self.controller._action_resize,
+                          req, FAKE_UUID, body)
+
     def test_confirm_resize_server(self):
         body = dict(confirmResize=None)
 
@@ -1090,7 +1100,7 @@ class ServerActionsControllerTest(test.TestCase):
         self.assertEqual(bdms[0]['snapshot_id'], snapshot['id'])
         for fld in ('connection_info', 'id',
                     'instance_uuid', 'device_name'):
-            self.assertTrue(fld not in bdms[0])
+            self.assertNotIn(fld, bdms[0])
         for k in extra_properties.keys():
             self.assertEqual(properties[k], extra_properties[k])
 
