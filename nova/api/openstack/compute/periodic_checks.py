@@ -85,6 +85,16 @@ class Controller(wsgi.Controller):
 
     _view_builder_class = views_periodic_checks.ViewBuilder
 
+    mock_data = [
+        PeriodicCheck(0, 'OpenAttestation',
+                      'Static file integrity check using IMA/TPM',
+                      600, 1200),
+        PeriodicCheck(1, 'DynMem',
+                      'Dynamic memory check', 300, 600),
+        PeriodicCheck(2, 'Yet Another Check',
+                      'One more mock check', 720, 1440),
+    ]
+
     def __init__(self, **kwargs):
         """Initialize new `PeriodicCheckController`."""
         super(Controller, self).__init__(**kwargs)
@@ -170,15 +180,7 @@ class Controller(wsgi.Controller):
             params[key] = val
 
         try:
-            periodic_checks = [
-                PeriodicCheck(0, 'OpenAttestation',
-                              'Static file integrity check using IMA/TPM',
-                              600, 1200),
-                PeriodicCheck(1, 'DynMem',
-                              'Dynamic memory check', 300, 600),
-                PeriodicCheck(2, 'Yet Another Check',
-                              'One more mock check', 720, 1440),
-            ]
+            periodic_checks = Controller.mock_data
             #periodic_checks = self._periodic_check_service.detail(context,
             #    filters=filters, **page_params)
         except exception.Invalid as e:
