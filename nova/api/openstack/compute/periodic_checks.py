@@ -10,6 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import uuid
 import webob.exc
 
 from nova.api.openstack import common
@@ -215,18 +216,23 @@ class Controller(wsgi.Controller):
         """Create periodic check.
 
         :param req: `wsgi.Request` object
-        :param id: Periodic check identifier
+        :param body: Periodic check properties
         """
-        periodic_check_dict = body['periodic_check']
+        try:
+            periodic_check_dict = body['periodic_check']
         
-        id = periodic_check_dict['id']
-        name = periodic_check_dict['name']
-        desc = periodic_check_dict['desc']
-        spacing = periodic_check_dict['spacing']
-        timeout = periodic_check_dict['timeout']
+            id = periodic_check_dict['id']
+            if (id = None):
+                id = uuid.uuid4()
+            name = periodic_check_dict['name']
+            desc = periodic_check_dict['desc']
+            spacing = periodic_check_dict['spacing']
+            timeout = periodic_check_dict['timeout']
+            periodic_check = PeriodicCheck(id, name, desc, timeout, spacing)
+            Controller.mock_data.append(periodic_check)
+        except exception.Invalid as e:
+            raise webob.exc.HTTPBadRequest(explanation=e.format_message())
 
-        periodic_check = PeriodicCheck(id, name, desc, timeout, spacing)
-        Controller.mock_data.append(periodic_check)
         return self._view_builder.show(req, periodic_check)
 
 
