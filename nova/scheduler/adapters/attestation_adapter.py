@@ -47,13 +47,14 @@ from oslo.config import cfg
 
 from nova import context
 from nova import db
-from nova.openstack.common.gettextutils import _
+from nova.openstack.common import gettextutils
 from nova.openstack.common import jsonutils
 from nova.openstack.common import log as logging
 from nova.openstack.common import timeutils
 from nova.scheduler import adapters
 
 LOG = logging.getLogger(__name__)
+_ = gettextutils._
 
 trusted_opts = [
     cfg.StrOpt('attestation_server',
