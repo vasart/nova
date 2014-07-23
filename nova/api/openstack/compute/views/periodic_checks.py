@@ -11,7 +11,6 @@
 #    under the License.
 
 from nova.api.openstack import common
-from nova.image import glance
 from nova.openstack.common import timeutils
 
 
@@ -23,20 +22,23 @@ class ViewBuilder(common.ViewBuilder):
         """Return a dictionary with basic periodic checks attributes."""
         return {
             "periodic_check": {
-                "id": periodic_check.get("id"),
-                "name": periodic_check.get("name"),
+                "id": periodic_check.id,
+                "name": periodic_check.name,
+                "desc": periodic_check.desc,
+                "timeout": periodic_check.timeout,
+                "spacing": periodic_check.spacing,
             },
         }
 
     def show(self, request, periodic_check):
         """Return a dictionary with periodic check details."""
         periodic_check_dict = {
-            "id": image.get("id"),
-            "name": image.get("name"),
-            "desc": image.get("desc"),
-            "timeout": image.get("timeout"),
-            "spacing": image.get("spacing"),
-            "created": self._format_date(image.get("created")),
+            "id": periodic_check.id,
+            "name": periodic_check.name,
+            "desc": periodic_check.desc,
+            "timeout": periodic_check.timeout,
+            "spacing": periodic_check.spacing,
+#             "created": self._format_date(periodic_check.get("created")),
         }
 
         return dict(periodic_check=periodic_check_dict)
@@ -56,7 +58,7 @@ class ViewBuilder(common.ViewBuilder):
         periodic_check_list = [list_func(request, periodic_check)["periodic_check"] \
             for periodic_check in periodic_checks]
 
-        return dict(images=periodic_check_list)
+        return dict(periodic_checks=periodic_check_list)
 
 
     @staticmethod

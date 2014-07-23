@@ -27,7 +27,6 @@ SUPPORTED_FILTERS = {
     'desc': 'desc',
     'timeout': 'timeout',
     'spacing': 'spacing',
-    'created': 'created'
 }
 
 
@@ -35,16 +34,25 @@ def make_periodic_check(elem, detailed=False):
     elem.set('id')
     elem.set('name')
 
-    if detailed:
-        elem.set('desc')
-        elem.set('timeout')
-        elem.set('spacing')
-        elem.set('created')
+#     if detailed:
+    elem.set('desc')
+    elem.set('timeout')
+    elem.set('spacing')
 
-        #elem.append(common.MetadataTemplate())
+    elem.append(common.MetadataTemplate())
 
 
 periodic_check_nsmap = {None: xmlutil.XMLNS_V11, 'atom': xmlutil.XMLNS_ATOM}
+
+
+class PeriodicCheck():
+
+    def __init__(self, check_id, name, desc, timeout, spacing):
+        self.id = check_id
+        self.name = name
+        self.desc = desc
+        self.timeout = timeout
+        self.spacing = spacing
 
 
 class PeriodicCheckTemplate(xmlutil.TemplateBuilder):
@@ -162,7 +170,14 @@ class Controller(wsgi.Controller):
             params[key] = val
 
         try:
-            periodic_checks = []
+            periodic_checks = [
+                PeriodicCheck(0, 'OpenAttestation',
+                              'Static file integrity check using IMA/TPM', 600, 1200),
+                PeriodicCheck(1, 'DynMem',
+                              'Dynamic memory check', 300, 600),
+                PeriodicCheck(2, 'Yet Another Check',
+                              'One more mock check', 720, 1440),
+            ]
             #periodic_checks = self._periodic_check_service.detail(context,
             #    filters=filters, **page_params)
         except exception.Invalid as e:
