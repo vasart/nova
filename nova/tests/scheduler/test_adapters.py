@@ -14,16 +14,16 @@ Tests For Host Adapter.
 """
 
 import httplib
+
 import stubout
 
-from nova import test
 from nova import context
-from nova import servicegroup
-from nova.scheduler import adapters
-from nova.tests.scheduler import fakes
 from nova.openstack.common import timeutils
+from nova.scheduler import adapters
 from nova.scheduler.adapters import attestation_adapter
-
+from nova import servicegroup
+from nova import test
+from nova.tests.scheduler import fakes
 
 
 class AdapterTestCase(test.NoDBTestCase):
@@ -39,11 +39,12 @@ class AdapterTestCase(test.NoDBTestCase):
         self.oat_data = ''
         self.stubs = stubout.StubOutForTesting()
         self.stubs.Set(attestation_adapter.AttestationService, '_request',
-                self.fake_oat_request)
+                       self.fake_oat_request)
         self.context = context.RequestContext('fake', 'fake')
         adapter_handler = adapters.AdapterHandler()
         classes = adapter_handler.get_matching_classes(
-                ['nova.scheduler.adapters.all_adapters'])
+            ['nova.scheduler.adapters.all_adapters']
+        )
         self.class_map = {}
         for cls in classes:
             self.class_map[cls.__name__] = cls
@@ -59,52 +60,54 @@ class AdapterTestCase(test.NoDBTestCase):
 
     def _set_oat_trusted(self, trusted_stats):
         self.oat_data = {"hosts": [{"host_name": "host1",
-                           "trust_lvl": trusted_stats,
-                           "vtime": timeutils.isotime()}]}
-        
+                         "trust_lvl": trusted_stats,
+                         "vtime": timeutils.isotime()}]}
 
     def test_attestation_adapter_and_trusted(self):
-        
         self._set_oat_trusted('trusted')
         self._stub_service_is_up(True)
         adapter_cls = self.class_map['ComputeAttestationAdapter']()
         extra_specs = {'trust:trusted_host': 'trusted'}
         host_state = fakes.FakeHostState('host1', 'node1', {})
-        is_trust, _ = adapter_cls.is_trusted(host_state.host, 
-                        extra_specs.get('trust:trusted_host'))
+        is_trust, _ = adapter_cls.is_trusted(
+            host_state.host,
+            extra_specs.get('trust:trusted_host')
+        )
         self.assertTrue(is_trust)
 
     def test_attestation_adapter_and_untrusted(self):
-
         self._set_oat_trusted('untrusted')
         self._stub_service_is_up(True)
         adapter_cls = self.class_map['ComputeAttestationAdapter']()
         extra_specs = {'trust:trusted_host': 'trusted'}
         host_state = fakes.FakeHostState('host2', 'node1', {})
-        is_trust, _ = adapter_cls.is_trusted(host_state.host, 
-                        extra_specs.get('trust:trusted_host'))
+        is_trust, _ = adapter_cls.is_trusted(
+            host_state.host,
+            extra_specs.get('trust:trusted_host')
+        )
         self.assertFalse(is_trust)
 
     def test_attestation_adapter_and_unknown(self):
-
         self._set_oat_trusted('unknown')
         self._stub_service_is_up(True)
         adapter_cls = self.class_map['ComputeAttestationAdapter']()
         extra_specs = {'trust:trusted_host': 'trusted'}
         host_state = fakes.FakeHostState('host3', 'node1', {})
-        is_trust, _ = adapter_cls.is_trusted(host_state.host, 
-                        extra_specs.get('trust:trusted_host'))
+        is_trust, _ = adapter_cls.is_trusted(
+            host_state.host,
+            extra_specs.get('trust:trusted_host')
+        )
         self.assertFalse(is_trust)
 
     def test_attestation_adapter_and_turn_on(self):
-        
         self._set_oat_trusted('trusted')
         self._stub_service_is_up(True)
         adapter_cls = self.class_map['ComputeAttestationAdapter']()
         extra_specs = {'trust:trusted_host': 'trusted'}
         host_state = fakes.FakeHostState('host1', 'node1', {})
-        is_trust, turn_on = adapter_cls.is_trusted(host_state.host, 
-                        extra_specs.get('trust:trusted_host'))
+        is_trust, turn_on = adapter_cls.is_trusted(
+            host_state.host,
+            extra_specs.get('trust:trusted_host')
+        )
         self.assertTrue(is_trust)
         self.assertTrue(turn_on)
-

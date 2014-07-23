@@ -11,10 +11,11 @@
 #    under the License.
 
 """
-Adapter 
+Adapter
 """
 
 from nova import loadables
+
 
 class BaseAdapter(object):
     """Base class for adapter."""

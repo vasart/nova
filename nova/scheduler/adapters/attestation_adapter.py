@@ -12,7 +12,7 @@
 #    under the License.
 
 """
-Filter to add support for Trusted Computing Pools. 
+Filter to add support for Trusted Computing Pools.
 
 Filter that only schedules tasks on a host if the integrity (trust)
 of that host matches the trust requested in the `extra_specs' for the
@@ -72,12 +72,12 @@ trusted_opts = [
                default=60,
                help='Attestation status cache valid period length'),
     cfg.StrOpt('attestation_status',
-              default='trust_on',
-              help='Attestation status for turn off or on'),
+               default='trust_on',
+               help='Attestation status for turn off or on'),
 ]
 
 CONF = cfg.CONF
-trust_group = cfg.OptGroup(name='trusted_computing', 
+trust_group = cfg.OptGroup(name='trusted_computing',
                            title='Trust parameters')
 CONF.register_group(trust_group)
 CONF.register_opts(trusted_opts, group=trust_group)
@@ -177,7 +177,7 @@ class AttestationService(object):
         result = None
 
         status, data = self._request("POST", "PollHosts", hosts)
-        if data != None:
+        if data is not None:
             result = data.get('hosts')
 
         return result
@@ -216,8 +216,9 @@ class ComputeAttestationCache(object):
         if host in self.compute_nodes:
             node_stats = self.compute_nodes.get(host)
             if not timeutils.is_older_than(
-                             node_stats['vtime'],
-                             CONF.trusted_computing.attestation_auth_timeout):
+                node_stats['vtime'],
+                CONF.trusted_computing.attestation_auth_timeout
+            ):
                 cachevalid = True
         return cachevalid
 
@@ -225,7 +226,9 @@ class ComputeAttestationCache(object):
         self.compute_nodes[host] = {
             'trust_lvl': 'unknown',
             'vtime': timeutils.normalize_time(
-                        timeutils.parse_isotime("1970-01-01T00:00:00Z"))}
+                timeutils.parse_isotime("1970-01-01T00:00:00Z")
+            )
+        }
 
     def _invalidate_caches(self):
         for host in self.compute_nodes:
@@ -240,7 +243,8 @@ class ComputeAttestationCache(object):
         try:
             # Normalize as naive object to interoperate with utcnow().
             entry['vtime'] = timeutils.normalize_time(
-                            timeutils.parse_isotime(state['vtime']))
+                timeutils.parse_isotime(state['vtime'])
+            )
         except ValueError:
             # Mark the system as un-trusted if get invalid vtime.
             entry['trust_lvl'] = 'unknown'
