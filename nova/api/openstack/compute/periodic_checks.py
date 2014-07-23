@@ -210,8 +210,24 @@ class Controller(wsgi.Controller):
         req.cache_db_items('periodic_checks', periodic_checks, 'id')
         return self._view_builder.detail(req, periodic_checks)
 
-    def create(self, *args, **kwargs):
-        raise webob.exc.HTTPMethodNotAllowed()
+    @wsgi.serializers(xml=PeriodicCheckTemplate)
+    def create(self, req, id):
+        """Create periodic check.
+
+        :param req: `wsgi.Request` object
+        :param id: Periodic check identifier
+        """
+        periodic_check_dict = body['periodic_check']
+        
+        id = periodic_check_dict['id']
+        name = periodic_check_dict['name']
+        desc = periodic_check_dict['desc']
+        spacing = periodic_check_dict['spacing']
+        timeout = periodic_check_dict['timeout']
+
+        periodic_check = PeriodicCheck(id, name, desc, timeout, spacing)
+        mock_data.append(periodic_check)
+        return self._view_builder.show(req, periodic_check)
 
 
 def create_resource():
