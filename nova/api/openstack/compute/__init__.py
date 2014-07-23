@@ -129,7 +129,8 @@ class APIRouter(nova.api.openstack.APIRouter):
                            conditions={"method": ['PUT']})
 
         if init_only is None or 'periodic_checks' in init_only:
-            self.resources['periodic_checks'] = periodic_checks.create_resource()
+            self.resources['periodic_checks'] = \
+                periodic_checks.create_resource()
             mapper.resource("periodic_check", "periodic_checks",
                             controller=self.resources['periodic_checks'],
                             collection={'detail': 'GET'},

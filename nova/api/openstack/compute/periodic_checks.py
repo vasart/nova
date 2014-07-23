@@ -19,7 +19,6 @@ from nova.api.openstack import wsgi
 from nova.api.openstack import xmlutil
 from nova import exception
 from nova.openstack.common.gettextutils import _
-import nova.utils
 
 
 SUPPORTED_FILTERS = {
@@ -87,7 +86,7 @@ class Controller(wsgi.Controller):
     _view_builder_class = views_periodic_checks.ViewBuilder
 
     def __init__(self, **kwargs):
-        """Initialize new `PeriodicCheckController`"""
+        """Initialize new `PeriodicCheckController`."""
         super(Controller, self).__init__(**kwargs)
 
     def _get_filters(self, req):
@@ -124,7 +123,7 @@ class Controller(wsgi.Controller):
         :param req: `wsgi.Request` object
         :param id: Periodic check identifier
         """
-        context = req.environ['nova.context']
+        #context = req.environ['nova.context']
 
         try:
             periodic_check = None
@@ -142,16 +141,17 @@ class Controller(wsgi.Controller):
         :param req: `wsgi.Request` object
         :param id: Periodic check identifier (integer)
         """
-        context = req.environ['nova.context']
+        #context = req.environ['nova.context']
         try:
             pass
             #self._periodic_check_service.delete(context, id)
         except exception.NotFound:
             explanation = _("Periodic check not found.")
             raise webob.exc.HTTPNotFound(explanation=explanation)
-        except exception.NotAuthorized:
+        except exception.Forbidden:
             # This exception is raised on delete of OpenAttestation check
-            explanation = _("You are not allowed to delete the periodic check.")
+            explanation = \
+                _("You are not allowed to delete the periodic check.")
             raise webob.exc.HTTPForbidden(explanation=explanation)
         return webob.exc.HTTPNoContent()
 
@@ -162,8 +162,8 @@ class Controller(wsgi.Controller):
         :param req: `wsgi.Request` object
 
         """
-        context = req.environ['nova.context']
-        filters = self._get_filters(req)
+        #context = req.environ['nova.context']
+        #filters = self._get_filters(req)
         params = req.GET.copy()
         page_params = common.get_pagination_params(req)
         for key, val in page_params.iteritems():
@@ -172,7 +172,8 @@ class Controller(wsgi.Controller):
         try:
             periodic_checks = [
                 PeriodicCheck(0, 'OpenAttestation',
-                              'Static file integrity check using IMA/TPM', 600, 1200),
+                              'Static file integrity check using IMA/TPM',
+                              600, 1200),
                 PeriodicCheck(1, 'DynMem',
                               'Dynamic memory check', 300, 600),
                 PeriodicCheck(2, 'Yet Another Check',
@@ -191,8 +192,8 @@ class Controller(wsgi.Controller):
         :param req: `wsgi.Request` object.
 
         """
-        context = req.environ['nova.context']
-        filters = self._get_filters(req)
+        #context = req.environ['nova.context']
+        #filters = self._get_filters(req)
         params = req.GET.copy()
         page_params = common.get_pagination_params(req)
         for key, val in page_params.iteritems():
