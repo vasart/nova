@@ -211,7 +211,7 @@ class Controller(wsgi.Controller):
         return self._view_builder.detail(req, periodic_checks)
 
     @wsgi.serializers(xml=PeriodicCheckTemplate)
-    def create(self, req, id):
+    def create(self, req, body):
         """Create periodic check.
 
         :param req: `wsgi.Request` object
@@ -226,7 +226,7 @@ class Controller(wsgi.Controller):
         timeout = periodic_check_dict['timeout']
 
         periodic_check = PeriodicCheck(id, name, desc, timeout, spacing)
-        mock_data.append(periodic_check)
+        Controller.mock_data.append(periodic_check)
         return self._view_builder.show(req, periodic_check)
 
 
