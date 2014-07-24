@@ -76,7 +76,7 @@ class PeriodicChecks(object):
         during running checks'''
         if(PeriodicChecks.periodic_tasks_running):
             '''store data'''
-            check1={'check_id':1,'host':"1234",'result':"result",'status':'on'}
+            check1={'check_id':"ameycheck1",'host':"host1234",'result':"result of checks",'status':'on'}
             db.store_periodic_check(context, check1)
             for host in self.compute_nodes:
                 for adapter in adapters:

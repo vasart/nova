@@ -6102,7 +6102,6 @@ def get_periodic_check_results(context, num_results):
 def store_periodic_check(context, check):
     check_ref = models.PeriodicCheckResults()
     check_ref.update(check)
-
     try:
         check_ref.save()
     except db_exc.DBDuplicateEntry:
