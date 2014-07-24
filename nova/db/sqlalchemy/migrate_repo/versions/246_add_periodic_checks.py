@@ -19,27 +19,42 @@ from sqlalchemy import Boolean, Integer, DateTime, String
 
 from nova.db.sqlalchemy import types
 
-
+from nova.openstack.common import timeutils
 
 def upgrade(migrate_engine):
     """Function adds network mtu, dhcp_server, and share_dhcp fields."""
         
     meta = MetaData(bind=migrate_engine)
-
     pc = Table(
-        'periodic_checks', meta, 
+        'periodic_checks', meta,
+        Column('created_at', DateTime, default=timeutils.utcnow),
+        Column('updated_at', DateTime, onupdate=timeutils.utcnow),
+        Column('deleted_at', DateTime),
+        Column('deleted', Integer, default=0), 
+        Column('check_id', String(length=50), primary_key=True, nullable=False),
+        Column('server', String(length=50)),
+        Column('status', String(50), nullable=False, default='turn_off'),
+        Column('time_out', Integer, nullable=False),
+        Column('port', Integer),
+    )
+    pcr = Table(
+        'periodic_check_results', meta, 
         Column('id', Integer, primary_key=True, nullable=False),
         Column('created_at', DateTime),
         Column('check_id', String(length=50)),
         Column('host', String(50), nullable=False),
         Column('result', String(5), nullable=False,default=False),
-        Column('status', String(200), nullable=False),
+        Column('status', String(50), nullable=False),
     )
+
     pc.create()
+    pcr.create()
 
 
 def downgrade(migrate_engine):
     """Function removes network mtu, dhcp_server, and share_dhcp fields."""
     meta = MetaData(bind=migrate_engine)
-    pc = Table('periodic_checks', meta, autoload=True)
+    pc  = Table('periodic_checks', meta, autoload=True)
+    pcr = Table('periodic_checks_results', meta, autoload=True)
+    pcr.drop()
     pc.drop()

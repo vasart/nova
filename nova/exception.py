@@ -1602,3 +1602,6 @@ class ImageVCPUTopologyRangeExceeded(Invalid):
 class ImageVCPULimitsRangeImpossible(Invalid):
     msg_fmt = _("Requested vCPU limits %(sockets)d:%(cores)d:%(threads)d "
                 "are impossible to satisfy for vcpus count %(vcpus)d")
+
+class PeriodicCheckFound(NotFound):
+    msg_fmt = _("Periodic check %(check_id)s could not be found.")
