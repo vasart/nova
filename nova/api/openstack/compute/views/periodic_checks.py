@@ -55,11 +55,10 @@ class ViewBuilder(common.ViewBuilder):
 
     def _list_view(self, list_func, request, periodic_checks):
         """Provide a view for a list of periodic checks."""
-        periodic_check_list = [list_func(request, periodic_check)["periodic_check"] \
+        periodic_check_list = [list_func(request, periodic_check)["periodic_check"]
             for periodic_check in periodic_checks]
 
         return dict(periodic_checks=periodic_check_list)
-
 
     @staticmethod
     def _format_date(dt):
