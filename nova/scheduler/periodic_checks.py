@@ -27,7 +27,7 @@ class PeriodicChecks(object):
     check_times = 0
     
     # periodic tasks not running by default
-    periodic_tasks_running = False
+    periodic_tasks_running = True
     
     def __init__(self):
         ''' TODO:

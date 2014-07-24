@@ -20,6 +20,8 @@ from nova.api.openstack import xmlutil
 from nova import exception
 from nova.openstack.common import gettextutils
 
+from nova.scheduler import periodic_checks
+
 
 _ = gettextutils._
 
@@ -239,6 +241,10 @@ class Controller(wsgi.Controller):
             timeout = periodic_check_dict['timeout']
             periodic_check = PeriodicCheck(id, name, desc, timeout, spacing)
             Controller.mock_data.append(periodic_check)
+            
+            context = req.environ['nova.context']
+            self.component = periodic_checks.PeriodicChecks()
+            self.component.run_checks({})
         except exception.Invalid as e:
             raise webob.exc.HTTPBadRequest(explanation=e.format_message())
 
