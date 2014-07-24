@@ -156,7 +156,14 @@ class Controller(wsgi.Controller):
         """
         #context = req.environ['nova.context']
         try:
-            pass
+            ind = 0
+
+            for index, check in enumerate(Controller.mock_data):
+                if int(check.id) == int(id):
+                    ind = index
+                    break
+                
+            del Controller.mock_data[ind]
             #self._periodic_check_service.delete(context, id)
         except exception.NotFound:
             explanation = _("Periodic check not found.")
