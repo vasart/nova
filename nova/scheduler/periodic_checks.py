@@ -105,30 +105,20 @@ class PeriodicChecks(object):
         db.periodic_check_create(context, values)
 
 
-    def remove_check(self, context, **kwargs):
+    def remove_check(self, context, values):
         ''' stop and delete adapter for this check and update Ceilometer 
         database
         '''        
-        check_id = kwargs['check_id']
-        if check_id not in self.running_checks:
-            raise Exception("Check is not running")
-        else:
-            # stop the check
-            self.running_checks[check_id] = None
-            # remove it from list of running checks
-            self.running_checks.pop(check_id)
-            # check if there are no checks running
-            if len(self.running_checks) == 0:
-                PeriodicChecks.periodic_tasks_running = False
-        db.periodic_check_delete(context, check_id)
+        check_name = values['check_name']
+        db.periodic_check_delete(context, check_name)
 
-    def update_check(self, context, **kwargs):
-        check_id = kwargs['check_id']
-        db.periodic_check_update(context, check_id, kwargs)
+    def update_check(self, context, values):
+        check_name = values['check_name']
+        db.periodic_check_update(context, check_name, values)
 
-    def get_check_by_id(self, context, values):
-        check_id = values['check_id']
-        return db.periodic_check_get(context, check_id)
+    def get_check_by_name(self, context, values):
+        check_name = values['check_name']
+        return db.periodic_check_get(context, check_name)
 
     def get_all_checks(self, context):
         return db.periodic_check_get_all(context)

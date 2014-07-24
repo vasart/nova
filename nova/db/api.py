@@ -1984,7 +1984,7 @@ def store_periodic_check(context, check):
 
     ###################
 
-def periodic_check_get(context, check_id):
+def periodic_check_get(context, check_name):
     """Get a periodic check by its id.
 
     :param context: The security context
@@ -1994,7 +1994,7 @@ def periodic_check_get(context, check_id):
 
     Raises PeriodicCheckNotFound if periodic check with the given ID doesn't exist.
     """
-    return IMPL.periodic_check_get(context, check_id)
+    return IMPL.periodic_check_get(context, check_name)
 
 def periodic_check_get_all(context, disabled=None):
     """Get all periodic checks.
@@ -2008,12 +2008,12 @@ def periodic_check_create(context, values):
     """
     return IMPL.periodic_check_create(context, values)
 
-def periodic_check_update(context, check_id, values):
+def periodic_check_update(context, check_name, values):
     """Update a periodic check.
     """
-    return IMPL.periodic_check_update(context, check_id, values)
+    return IMPL.periodic_check_update(context, check_name, values)
 
-def periodic_check_delete(context, check_id):
+def periodic_check_delete(context, check_name):
     """delete a periodic check.
     """
-    return IMPL.periodic_check_delete(context, check_id)
+    return IMPL.periodic_check_delete(context, check_name)
