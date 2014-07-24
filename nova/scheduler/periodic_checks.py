@@ -1,7 +1,10 @@
+from oslo.config import cfg
+
 from nova import context
 from nova import db
 from nova.openstack.common import log as logging
 from nova.openstack.common import periodic_task
+from nova.openstack.common import timeutils
 from nova.scheduler import adapters
 
 class PeriodicChecks(object):
@@ -38,12 +41,26 @@ class PeriodicChecks(object):
         PeriodicChecks.periodic_tasks_running = True
         # get all adapters
         self.adapter_handler = adapters.AdapterHandler()
-        # get all compute nodes
-        self.compute_nodes = db.compute_node_get_all(admin)
-        # trust status for each node in the compute pool
-        self.node_trust_status = {}
+        # all compute nodes
+        self.compute_nodes = {}
+        # all adapters in the adapters folder 
         self._get_all_adapters()
-                
+        # test code
+        self.check_times = 1
+        # start checks
+        self.run_checks({})
+        computes = db.compute_node_get_all(admin)
+        for compute in computes:
+            service = compute['service']
+            host = service['host']
+            self._init_cache_entry(host)
+        
+    def _init_cache_entry(self, host):
+        self.compute_nodes[host] = {
+            'trust_lvl': 'unknown',
+            'vtime': timeutils.normalize_time(
+                        timeutils.parse_isotime("1970-01-01T00:00:00Z"))}
+     
     def _get_all_adapters(self):
         adapter_handler = adapters.AdapterHandler()
         classes = adapter_handler.get_matching_classes(
@@ -53,19 +70,25 @@ class PeriodicChecks(object):
             class_map[cls.__name__] = cls
         return class_map
     
-    @periodic_task.periodic_task
-    def run_checks(self, **kwargs):
+    @periodic_task.periodic_task(spacing=5,run_immediately=True)
+    def run_checks(self, kwargs):
         ''' form a temporary compute pool to prevent unavailability of pool 
         during running checks'''
-        print "called"
-        self.check_times += 1
-        trust_status_temp = {}
-        for node in self.compute_nodes:
-            for adapter in adapters:
-                result = adapter.is_trusted(node, 'trusted')
-                trust_status_temp[node] = result
-        self.node_trust_status = trust_status_temp
-        return 100
+        if(PeriodicChecks.periodic_tasks_running):
+            '''store data'''
+            check1={'check_id':1,'host':"1234",'result':"result",'status':'on'}
+            db.store_periodic_check(context, check1)
+            for host in self.compute_nodes:
+                for adapter in adapters:
+                    result, turn_on = adapter.is_trusted(host, 'trusted')
+                    if turn_on:
+                        current_host = self.compute_nodes[host]
+                        current_host['trust_lvl'] = result
+
+                    else:
+                        '''not store data'''
+            self.check_times += 1
+        return self.check_times
         
     
     ''' Add checks through horizon
@@ -73,18 +96,20 @@ class PeriodicChecks(object):
     @param spacing: time between successive checks in seconds
     @param type-of_check: (optional) any additional info about of the check 
     '''
-    def add_check(self,**kwargs):
+    def add_check(self, context, values):
         ''' check_id = kwargs['id']
         set the periodic tasks running flag to True
-        TODO write new check into CONF 
+        TODO write new check into CONF and then call adapter
         '''
         PeriodicChecks.periodic_tasks_running = True
-    
-    def remove_check(self, **kwargs):
+        db.periodic_check_create(context, values)
+
+
+    def remove_check(self, context, **kwargs):
         ''' stop and delete adapter for this check and update Ceilometer 
         database
         '''        
-        check_id = kwargs['id']
+        check_id = kwargs['check_id']
         if check_id not in self.running_checks:
             raise Exception("Check is not running")
         else:
@@ -95,18 +120,24 @@ class PeriodicChecks(object):
             # check if there are no checks running
             if len(self.running_checks) == 0:
                 PeriodicChecks.periodic_tasks_running = False
-            
-    def update_check(self, **kwargs):
-        check_id = kwargs['id']
-        new_spacing = kwargs['spacing']
-        self.remove_check[check_id]
-        ''' optional: also specify type_of_check'''
-        self.add_check['id':check_id, 'spacing': new_spacing]
+        db.periodic_check_delete(context, check_id)
 
-    ''' Used to check of periodic tasks are running by 
-    scheduler.filters.trusted_filter
-    '''
+    def update_check(self, context, **kwargs):
+        check_id = kwargs['check_id']
+        db.periodic_check_update(context, check_id, kwargs)
+
+    def get_check_by_id(self, context, values):
+        check_id = values['check_id']
+        return db.periodic_check_get(context, check_id)
+
+    def get_all_checks(self, context):
+        return db.periodic_check_get_all(context)
+
+
     def is_periodic_checks_running(self):
+        ''' Used to check of periodic tasks are running by 
+        scheduler.filters.trusted_filter
+        '''
         if PeriodicChecks.periodic_tasks_running:
             return True;
         return False;
@@ -114,3 +145,13 @@ class PeriodicChecks(object):
     def get_running_checks(self):
         return self.running_checks;
 
+    def get_trusted_pool(self):
+        if(PeriodicChecks.periodic_tasks_running):
+            return self.compute_nodes
+        return None
+
+    def turn_off_periodic_check(self):
+        PeriodicChecks.periodic_tasks_running = False
+
+    def turn_on_periodic_check(self):
+        PeriodicChecks.periodic_tasks_running = True
