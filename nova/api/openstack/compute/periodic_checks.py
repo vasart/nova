@@ -139,13 +139,15 @@ class Controller(wsgi.Controller):
         #context = req.environ['nova.context']
 
         try:
-            periodic_check = None
-            #periodic_check = self._periodic_check_service.show(context, id)
+            for index, check in enumerate(Controller.mock_data):
+                if int(check.id) == int(id):
+                    periodic_check = check
+                    break
         except (exception.NotFound):
             explanation = _("Periodic check not found.")
             raise webob.exc.HTTPNotFound(explanation=explanation)
 
-        req.cache_db_items('periodic_checks', [periodic_check], 'id')
+#         req.cache_db_items('periodic_checks', [periodic_check], 'id')
         return self._view_builder.show(req, periodic_check)
 
     def delete(self, req, id):
@@ -230,7 +232,7 @@ class Controller(wsgi.Controller):
         try:
             periodic_check_dict = body['periodic_check']
 
-            id = len(mock_data) + 1
+            id = periodic_check_dict['id']
             name = periodic_check_dict['name']
             desc = periodic_check_dict['desc']
             spacing = periodic_check_dict['spacing']
@@ -241,6 +243,27 @@ class Controller(wsgi.Controller):
             raise webob.exc.HTTPBadRequest(explanation=e.format_message())
 
         return self._view_builder.show(req, periodic_check)
+    
+    @wsgi.serializers(xml=PeriodicCheckTemplate)
+    def update(self, req, id, body):
+        """Update periodic check.
+
+        :param req: `wsgi.Request` object
+        :param body: Periodic check properties
+        """
+        try:
+            periodic_check_dict = body['periodic_check']
+            
+            for index, check in enumerate(Controller.mock_data):
+                if int(check.id) == int(id):
+                    check.name = periodic_check_dict['name']
+                    check.desc = periodic_check_dict['desc']
+                    check.spacing = periodic_check_dict['spacing']
+                    check.timeout = periodic_check_dict['timeout']
+                    return self._view_builder.show(req, check)
+            
+        except exception.Invalid as e:
+            raise webob.exc.HTTPBadRequest(explanation=e.format_message())            
 
 
 def create_resource():
