@@ -225,7 +225,7 @@ class Controller(wsgi.Controller):
             periodic_check_dict = body['periodic_check']
         
             id = periodic_check_dict['id']
-            if (id = None):
+            if (id == None):
                 id = uuid.uuid4()
             name = periodic_check_dict['name']
             desc = periodic_check_dict['desc']
