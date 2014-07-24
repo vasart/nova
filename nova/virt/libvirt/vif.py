@@ -22,11 +22,11 @@ import copy
 from oslo.config import cfg
 
 from nova import exception
+from nova.i18n import _
+from nova.i18n import _LE
+from nova.i18n import _LW
 from nova.network import linux_net
 from nova.network import model as network_model
-from nova.openstack.common.gettextutils import _
-from nova.openstack.common.gettextutils import _LE
-from nova.openstack.common.gettextutils import _LW
 from nova.openstack.common import log as logging
 from nova.openstack.common import processutils
 from nova import utils
@@ -87,6 +87,9 @@ class LibvirtBaseVIFDriver(object):
     def __init__(self, get_connection):
         self.get_connection = get_connection
         self.libvirt_version = None
+
+    def _normalize_vif_type(self, vif_type):
+        return vif_type.replace('2.1q', '2q')
 
     def has_libvirt_version(self, want):
         if self.libvirt_version is None:
@@ -352,49 +355,12 @@ class LibvirtGenericVIFDriver(LibvirtBaseVIFDriver):
             raise exception.NovaException(
                 _("vif_type parameter must be present "
                   "for this vif_driver implementation"))
-        elif vif_type == network_model.VIF_TYPE_BRIDGE:
-            return self.get_config_bridge(instance,
-                                          vif,
-                                          image_meta,
-                                          inst_type)
-        elif vif_type == network_model.VIF_TYPE_OVS:
-            return self.get_config_ovs(instance,
-                                       vif,
-                                       image_meta,
-                                       inst_type)
-        elif vif_type == network_model.VIF_TYPE_802_QBG:
-            return self.get_config_802qbg(instance,
-                                          vif,
-                                          image_meta,
-                                          inst_type)
-        elif vif_type == network_model.VIF_TYPE_802_QBH:
-            return self.get_config_802qbh(instance,
-                                          vif,
-                                          image_meta,
-                                          inst_type)
-        elif vif_type == network_model.VIF_TYPE_IVS:
-            return self.get_config_ivs(instance,
-                                       vif,
-                                       image_meta,
-                                       inst_type)
-        elif vif_type == network_model.VIF_TYPE_IOVISOR:
-            return self.get_config_iovisor(instance,
-                                          vif,
-                                          image_meta,
-                                          inst_type)
-        elif vif_type == network_model.VIF_TYPE_MLNX_DIRECT:
-            return self.get_config_mlnx_direct(instance,
-                                               vif,
-                                               image_meta,
-                                               inst_type)
-        elif vif_type == network_model.VIF_TYPE_MIDONET:
-            return self.get_config_midonet(instance,
-                                           vif,
-                                           image_meta,
-                                           inst_type)
-        else:
+        vif_slug = self._normalize_vif_type(vif_type)
+        func = getattr(self, 'get_config_%s' % vif_slug, None)
+        if not func:
             raise exception.NovaException(
                 _("Unexpected vif_type=%s") % vif_type)
+        return func(instance, vif, image_meta, inst_type)
 
     def plug_bridge(self, instance, vif):
         """Ensure that the bridge exists, and add VIF to it."""
@@ -534,11 +500,12 @@ class LibvirtGenericVIFDriver(LibvirtBaseVIFDriver):
         super(LibvirtGenericVIFDriver,
               self).plug(instance, vif)
 
-        network = vif['network']
         vnic_mac = vif['address']
         device_id = instance['uuid']
-        fabric = network['meta']['physical_network']
-
+        fabric = vif.get_physical_network()
+        if not fabric:
+            raise exception.NetworkMissingPhysicalNetwork(
+                network_uuid=vif['network']['id'])
         dev_name = self.get_vif_devname_with_prefix(vif, DEV_PREFIX_ETH)
         try:
             utils.execute('ebrctl', 'add-port', vnic_mac, device_id, fabric,
@@ -607,25 +574,12 @@ class LibvirtGenericVIFDriver(LibvirtBaseVIFDriver):
             raise exception.NovaException(
                 _("vif_type parameter must be present "
                   "for this vif_driver implementation"))
-        elif vif_type == network_model.VIF_TYPE_BRIDGE:
-            self.plug_bridge(instance, vif)
-        elif vif_type == network_model.VIF_TYPE_OVS:
-            self.plug_ovs(instance, vif)
-        elif vif_type == network_model.VIF_TYPE_802_QBG:
-            self.plug_802qbg(instance, vif)
-        elif vif_type == network_model.VIF_TYPE_802_QBH:
-            self.plug_802qbh(instance, vif)
-        elif vif_type == network_model.VIF_TYPE_IVS:
-            self.plug_ivs(instance, vif)
-        elif vif_type == network_model.VIF_TYPE_IOVISOR:
-            self.plug_iovisor(instance, vif)
-        elif vif_type == network_model.VIF_TYPE_MLNX_DIRECT:
-            self.plug_mlnx_direct(instance, vif)
-        elif vif_type == network_model.VIF_TYPE_MIDONET:
-            self.plug_midonet(instance, vif)
-        else:
+        vif_slug = self._normalize_vif_type(vif_type)
+        func = getattr(self, 'plug_%s' % vif_slug, None)
+        if not func:
             raise exception.NovaException(
                 _("Unexpected vif_type=%s") % vif_type)
+        func(instance, vif)
 
     def unplug_bridge(self, instance, vif):
         """No manual unplugging required."""
@@ -727,9 +681,11 @@ class LibvirtGenericVIFDriver(LibvirtBaseVIFDriver):
         super(LibvirtGenericVIFDriver,
               self).unplug(instance, vif)
 
-        network = vif['network']
         vnic_mac = vif['address']
-        fabric = network['meta']['physical_network']
+        fabric = vif.get_physical_network()
+        if not fabric:
+            raise exception.NetworkMissingPhysicalNetwork(
+                network_uuid=vif['network']['id'])
         try:
             utils.execute('ebrctl', 'del-port', fabric,
                           vnic_mac, run_as_root=True)
@@ -796,25 +752,12 @@ class LibvirtGenericVIFDriver(LibvirtBaseVIFDriver):
             raise exception.NovaException(
                 _("vif_type parameter must be present "
                   "for this vif_driver implementation"))
-        elif vif_type == network_model.VIF_TYPE_BRIDGE:
-            self.unplug_bridge(instance, vif)
-        elif vif_type == network_model.VIF_TYPE_OVS:
-            self.unplug_ovs(instance, vif)
-        elif vif_type == network_model.VIF_TYPE_802_QBG:
-            self.unplug_802qbg(instance, vif)
-        elif vif_type == network_model.VIF_TYPE_802_QBH:
-            self.unplug_802qbh(instance, vif)
-        elif vif_type == network_model.VIF_TYPE_IVS:
-            self.unplug_ivs(instance, vif)
-        elif vif_type == network_model.VIF_TYPE_IOVISOR:
-            self.unplug_iovisor(instance, vif)
-        elif vif_type == network_model.VIF_TYPE_MLNX_DIRECT:
-            self.unplug_mlnx_direct(instance, vif)
-        elif vif_type == network_model.VIF_TYPE_MIDONET:
-            self.unplug_midonet(instance, vif)
-        else:
+        vif_slug = self._normalize_vif_type(vif_type)
+        func = getattr(self, 'unplug_%s' % vif_slug, None)
+        if not func:
             raise exception.NovaException(
                 _("Unexpected vif_type=%s") % vif_type)
+        func(instance, vif)
 
 # The following classes were removed in the transition from Havana to
 # Icehouse, but may still be referenced in configuration files.  The

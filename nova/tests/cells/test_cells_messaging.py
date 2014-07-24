@@ -33,7 +33,6 @@ from nova.network import model as network_model
 from nova import objects
 from nova.objects import base as objects_base
 from nova.objects import fields as objects_fields
-from nova.objects import instance_fault as instance_fault_obj
 from nova.openstack.common import jsonutils
 from nova.openstack.common import timeutils
 from nova.openstack.common import uuidutils
@@ -681,12 +680,14 @@ class CellsTargetedMethodsTestCase(test.TestCase):
         result = response.value_or_raise()
         self.assertEqual('fake_result', result)
 
-    def test_run_compute_api_method_expects_obj(self):
+    def _run_compute_api_method_expects_object(self, tgt_compute_api_function,
+                                               method_name,
+                                               expected_attrs=None):
+        # runs compute api methods which expects instance to be an object
         instance_uuid = 'fake_instance_uuid'
-        method_info = {'method': 'start',
+        method_info = {'method': method_name,
                        'method_args': (instance_uuid, 2, 3),
                        'method_kwargs': {'arg1': 'val1', 'arg2': 'val2'}}
-        self.mox.StubOutWithMock(self.tgt_compute_api, 'start')
         self.mox.StubOutWithMock(self.tgt_db_inst, 'instance_get_by_uuid')
 
         self.tgt_db_inst.instance_get_by_uuid(self.ctxt,
@@ -709,7 +710,7 @@ class CellsTargetedMethodsTestCase(test.TestCase):
             #
             class FakeInstance(object):
                 @classmethod
-                def _from_db_object(cls, ctxt, obj, db_obj):
+                def _from_db_object(cls, ctxt, obj, db_obj, **kwargs):
                     pass
 
             instance_mock = FakeInstance()
@@ -722,9 +723,12 @@ class CellsTargetedMethodsTestCase(test.TestCase):
             return instance_mock
 
         instance = get_instance_mock()
-        instance._from_db_object(
-                self.ctxt, instance, 'fake_instance').AndReturn(instance)
-        self.tgt_compute_api.start(self.ctxt, instance, 2, 3,
+        instance._from_db_object(self.ctxt,
+                                 instance,
+                                 'fake_instance',
+                                 expected_attrs=expected_attrs
+                                ).AndReturn(instance)
+        tgt_compute_api_function(self.ctxt, instance, 2, 3,
                 arg1='val1', arg2='val2').AndReturn('fake_result')
         self.mox.ReplayAll()
 
@@ -735,6 +739,20 @@ class CellsTargetedMethodsTestCase(test.TestCase):
                 True)
         result = response.value_or_raise()
         self.assertEqual('fake_result', result)
+
+    def test_run_compute_api_method_expects_obj(self):
+        # Run compute_api start method
+        self.mox.StubOutWithMock(self.tgt_compute_api, 'start')
+        self._run_compute_api_method_expects_object(self.tgt_compute_api.start,
+                                                    'start')
+
+    def test_run_compute_api_method_expects_obj_with_info_cache(self):
+        # Run compute_api shelve method as it requires info_cache and
+        # metadata to be present in instance object
+        self.mox.StubOutWithMock(self.tgt_compute_api, 'shelve')
+        self._run_compute_api_method_expects_object(
+            self.tgt_compute_api.shelve, 'shelve',
+            expected_attrs=['metadata', 'info_cache'])
 
     def test_run_compute_api_method_unknown_instance(self):
         # Unknown instance should send a broadcast up that instance
@@ -1602,7 +1620,7 @@ class CellsBroadcastMethodsTestCase(test.TestCase):
                                'message': 'fake-message',
                                'details': 'fake-details'}
 
-        if_mock = mock.Mock(spec_set=instance_fault_obj.InstanceFault)
+        if_mock = mock.Mock(spec_set=objects.InstanceFault)
 
         def _check_create():
             self.assertEqual('fake-message', if_mock.message)
@@ -1612,8 +1630,7 @@ class CellsBroadcastMethodsTestCase(test.TestCase):
 
         if_mock.create.side_effect = _check_create
 
-        with mock.patch.object(instance_fault_obj,
-                               'InstanceFault') as if_obj_mock:
+        with mock.patch.object(objects, 'InstanceFault') as if_obj_mock:
             if_obj_mock.return_value = if_mock
             self.src_msg_runner.instance_fault_create_at_top(
                     self.ctxt, fake_instance_fault)

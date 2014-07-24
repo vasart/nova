@@ -14,16 +14,16 @@
 #    under the License.
 
 import os.path
-
-from lxml import etree
-import six
 from xml.dom import minidom
 from xml.parsers import expat
 from xml import sax
 from xml.sax import expatreader
 
+from lxml import etree
+import six
+
 from nova import exception
-from nova.openstack.common.gettextutils import _
+from nova.i18n import _
 from nova import utils
 
 

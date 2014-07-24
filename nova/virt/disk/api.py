@@ -33,11 +33,10 @@ if os.name != 'nt':
 from oslo.config import cfg
 
 from nova import exception
-from nova.openstack.common.gettextutils import _
+from nova.i18n import _
 from nova.openstack.common import jsonutils
 from nova.openstack.common import log as logging
 from nova.openstack.common import processutils
-from nova import paths
 from nova import utils
 from nova.virt.disk.mount import api as mount
 from nova.virt.disk.vfs import api as vfs
@@ -47,10 +46,6 @@ from nova.virt import images
 LOG = logging.getLogger(__name__)
 
 disk_opts = [
-    cfg.StrOpt('injected_network_template',
-               default=paths.basedir_def('nova/virt/interfaces.template'),
-               help='Template file for injected network'),
-
     # NOTE(yamahata): ListOpt won't work because the command may include a
     #                 comma. For example:
     #
@@ -80,6 +75,14 @@ CONF.import_opt('default_ephemeral_format', 'nova.virt.driver')
 
 _MKFS_COMMAND = {}
 _DEFAULT_MKFS_COMMAND = None
+
+FS_FORMAT_EXT2 = "ext2"
+FS_FORMAT_EXT3 = "ext3"
+FS_FORMAT_EXT4 = "ext4"
+FS_FORMAT_XFS = "xfs"
+FS_FORMAT_NTFS = "ntfs"
+FS_FORMAT_VFAT = "vfat"
+
 _DEFAULT_FS_BY_OSTYPE = {'linux': 'ext3',
                          'windows': 'ntfs'}
 

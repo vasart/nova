@@ -55,10 +55,10 @@
 from __future__ import print_function
 
 import argparse
-import decorator
 import os
 import sys
 
+import decorator
 import netaddr
 from oslo.config import cfg
 from oslo import messaging
@@ -72,10 +72,10 @@ from nova import context
 from nova import db
 from nova.db import migration
 from nova import exception
+from nova.i18n import _
 from nova import objects
 from nova.openstack.common import cliutils
 from nova.openstack.common.db import exception as db_exc
-from nova.openstack.common.gettextutils import _
 from nova.openstack.common import importutils
 from nova.openstack.common import log as logging
 from nova import quota

@@ -39,6 +39,7 @@ from eventlet import greenthread
 import eventlet.timeout
 from oslo.config import cfg
 from oslo import messaging
+import six
 
 from nova import block_device
 from nova.cells import rpcapi as cells_rpcapi
@@ -56,6 +57,10 @@ from nova import consoleauth
 import nova.context
 from nova import exception
 from nova import hooks
+from nova.i18n import _
+from nova.i18n import _LE
+from nova.i18n import _LI
+from nova.i18n import _LW
 from nova import image
 from nova.image import glance
 from nova import manager
@@ -67,8 +72,6 @@ from nova.objects import base as obj_base
 from nova.objects import instance as instance_obj
 from nova.objects import quotas as quotas_obj
 from nova.openstack.common import excutils
-from nova.openstack.common.gettextutils import _
-from nova.openstack.common.gettextutils import _LW
 from nova.openstack.common import jsonutils
 from nova.openstack.common import log as logging
 from nova.openstack.common import periodic_task
@@ -117,6 +120,10 @@ compute_opts = [
     cfg.IntOpt('network_allocate_retries',
                default=0,
                help="Number of times to retry network allocation on failures"),
+    cfg.IntOpt('block_device_allocate_retries',
+               default=60,
+               help='Number of times to retry block device'
+                    ' allocation on failures')
     ]
 
 interval_opts = [
@@ -159,7 +166,11 @@ interval_opts = [
     cfg.IntOpt('instance_delete_interval',
                default=300,
                help=('Interval in seconds for retrying failed instance file '
-                     'deletes'))
+                     'deletes')),
+    cfg.IntOpt('block_device_allocate_retries_interval',
+               default=3,
+               help='Waiting time interval (seconds) between block'
+                    ' device allocation retries on failures')
 ]
 
 timeout_opts = [
@@ -552,7 +563,7 @@ class ComputeVirtAPI(virtapi.VirtAPI):
 class ComputeManager(manager.Manager):
     """Manages the running instances from creation to destruction."""
 
-    target = messaging.Target(version='3.30')
+    target = messaging.Target(version='3.32')
 
     def __init__(self, compute_driver=None, *args, **kwargs):
         """Load configuration options and connect to the hypervisor."""
@@ -1143,24 +1154,21 @@ class ComputeManager(manager.Manager):
                                                              instance)
         return network_info
 
-    def _await_block_device_map_created(self, context, vol_id, max_tries=180,
-                                        wait_between=1):
+    def _await_block_device_map_created(self, context, vol_id):
         # TODO(yamahata): creating volume simultaneously
         #                 reduces creation time?
         # TODO(yamahata): eliminate dumb polling
-        # TODO(harlowja): make the max_tries configurable or dynamic?
         attempts = 0
         start = time.time()
-        while attempts < max_tries:
+        while attempts < CONF.block_device_allocate_retries:
             volume = self.volume_api.get(context, vol_id)
             volume_status = volume['status']
             if volume_status not in ['creating', 'downloading']:
                 if volume_status != 'available':
                     LOG.warn(_("Volume id: %s finished being created but was"
                                " not set as 'available'"), vol_id)
-                # NOTE(harlowja): return how many attempts were tried
                 return attempts + 1
-            greenthread.sleep(wait_between)
+            greenthread.sleep(CONF.block_device_allocate_retries_interval)
             attempts += 1
         # NOTE(harlowja): Should only happen if we ran out of attempts
         raise exception.VolumeNotCreated(volume_id=vol_id,
@@ -1442,7 +1450,7 @@ class ComputeManager(manager.Manager):
         return rescheduled
 
     def _reschedule(self, context, request_spec, filter_properties,
-            instance, scheduler_method, method_args, task_state,
+            instance, reschedule_method, method_args, task_state,
             exc_info=None):
         """Attempt to re-schedule a compute operation."""
 
@@ -1462,7 +1470,7 @@ class ComputeManager(manager.Manager):
         request_spec['instance_uuids'] = [instance_uuid]
 
         LOG.debug("Re-scheduling %(method)s: attempt %(num)d",
-                  {'method': scheduler_method.func_name,
+                  {'method': reschedule_method.func_name,
                    'num': retry['num_attempts']}, instance_uuid=instance_uuid)
 
         # reset the task state:
@@ -1473,7 +1481,7 @@ class ComputeManager(manager.Manager):
             retry['exc'] = traceback.format_exception_only(exc_info[0],
                                     exc_info[1])
 
-        scheduler_method(context, *method_args)
+        reschedule_method(context, *method_args)
         return True
 
     @periodic_task.periodic_task
@@ -1903,9 +1911,10 @@ class ComputeManager(manager.Manager):
                     self._set_instance_error_state(context, instance.uuid)
                     return
                 retry['exc'] = traceback.format_exception(*sys.exc_info())
-                # dhcp_options are per host, so if they're set we need to
-                # deallocate the networks and reallocate on the next host.
-                if self.driver.dhcp_options_for_instance(instance):
+                # The MAC address for this instance is tied to the host so if
+                # we're going to reschedule we have to free the network details
+                # and reallocate on the next host.
+                if self.driver.macs_for_instance(instance):
                     self._cleanup_allocated_networks(context, instance,
                             requested_networks)
 
@@ -2007,6 +2016,14 @@ class ComputeManager(manager.Manager):
             msg = _('Failed to allocate the network(s), not rescheduling.')
             raise exception.BuildAbortException(instance_uuid=instance.uuid,
                     reason=msg)
+        except (exception.FlavorDiskTooSmall,
+                exception.FlavorMemoryTooSmall,
+                exception.ImageNotActive,
+                exception.ImageUnacceptable) as e:
+            self._notify_about_instance_usage(context, instance,
+                    'create.error', fault=e)
+            raise exception.BuildAbortException(instance_uuid=instance.uuid,
+                    reason=e.format_message())
         except Exception as e:
             self._notify_about_instance_usage(context, instance,
                     'create.error', fault=e)
@@ -2236,13 +2253,22 @@ class ComputeManager(manager.Manager):
             self._notify_about_instance_usage(context, instance,
                                               "shutdown.end")
 
-    def _cleanup_volumes(self, context, instance_uuid, bdms):
+    def _cleanup_volumes(self, context, instance_uuid, bdms, raise_exc=True):
+        exc_info = None
+
         for bdm in bdms:
             LOG.debug("terminating bdm %s", bdm,
                       instance_uuid=instance_uuid)
             if bdm.volume_id and bdm.delete_on_termination:
-                self.volume_api.delete(context, bdm.volume_id)
-            # NOTE(vish): bdms will be deleted on instance destroy
+                try:
+                    self.volume_api.delete(context, bdm.volume_id)
+                except Exception as exc:
+                    exc_info = sys.exc_info()
+                    LOG.warn(_LW('Failed to delete volume: %(volume_id)s due '
+                                 'to %(exc)s'), {'volume_id': bdm.volume_id,
+                                                  'exc': unicode(exc)})
+        if exc_info is not None and raise_exc:
+            six.reraise(exc_info[0], exc_info[1], exc_info[2])
 
     @hooks.add_hook("delete_instance")
     def _delete_instance(self, context, instance, bdms, quotas):
@@ -2279,11 +2305,8 @@ class ComputeManager(manager.Manager):
             #             future to set an instance fault the first time
             #             and to only ignore the failure if the instance
             #             is already in ERROR.
-            try:
-                self._cleanup_volumes(context, instance_uuid, bdms)
-            except Exception as exc:
-                err_str = _("Ignoring volume cleanup failure due to %s")
-                LOG.warn(err_str % exc, instance=instance)
+            self._cleanup_volumes(context, instance_uuid, bdms,
+                    raise_exc=False)
             # if a delete task succeed, always update vm state and task
             # state without expecting task state to be DELETING
             instance.vm_state = vm_states.DELETED
@@ -2348,14 +2371,21 @@ class ComputeManager(manager.Manager):
     @wrap_instance_fault
     def stop_instance(self, context, instance):
         """Stopping an instance on this host."""
-        self._notify_about_instance_usage(context, instance, "power_off.start")
-        self.driver.power_off(instance)
-        current_power_state = self._get_power_state(context, instance)
-        instance.power_state = current_power_state
-        instance.vm_state = vm_states.STOPPED
-        instance.task_state = None
-        instance.save(expected_task_state=task_states.POWERING_OFF)
-        self._notify_about_instance_usage(context, instance, "power_off.end")
+
+        @utils.synchronized(instance.uuid)
+        def do_stop_instance():
+            self._notify_about_instance_usage(context, instance,
+                                              "power_off.start")
+            self.driver.power_off(instance)
+            current_power_state = self._get_power_state(context, instance)
+            instance.power_state = current_power_state
+            instance.vm_state = vm_states.STOPPED
+            instance.task_state = None
+            instance.save(expected_task_state=task_states.POWERING_OFF)
+            self._notify_about_instance_usage(context, instance,
+                                              "power_off.end")
+
+        do_stop_instance()
 
     def _power_on(self, context, instance):
         network_info = self._get_instance_nw_info(context, instance)
@@ -3462,17 +3492,14 @@ class ComputeManager(manager.Manager):
         instance_uuid = instance['uuid']
 
         try:
-            # NOTE(comstud): remove the scheduler RPCAPI method when
-            # this is adjusted to send to conductor... and then
-            # deprecate the scheduler manager method.
-            scheduler_method = self.scheduler_rpcapi.prep_resize
-            instance_p = obj_base.obj_to_primitive(instance)
-            method_args = (instance_p, instance_type, image, request_spec,
-                           filter_properties, quotas.reservations)
+            reschedule_method = self.compute_task_api.resize_instance
+            scheduler_hint = dict(filter_properties=filter_properties)
+            method_args = (instance, None, scheduler_hint, instance_type,
+                           quotas.reservations)
             task_state = task_states.RESIZE_PREP
 
             rescheduled = self._reschedule(context, request_spec,
-                    filter_properties, instance, scheduler_method,
+                    filter_properties, instance, reschedule_method,
                     method_args, task_state, exc_info)
         except Exception as error:
             rescheduled = False
@@ -3790,6 +3817,24 @@ class ComputeManager(manager.Manager):
                 state=instance.power_state,
                 method='get_diagnostics')
 
+    @object_compat
+    @wrap_exception()
+    @wrap_instance_fault
+    def get_instance_diagnostics(self, context, instance):
+        """Retrieve diagnostics for an instance on this host."""
+        current_power_state = self._get_power_state(context, instance)
+        if current_power_state == power_state.RUNNING:
+            LOG.audit(_("Retrieving diagnostics"), context=context,
+                      instance=instance)
+            diags = self.driver.get_instance_diagnostics(instance)
+            return diags.serialize()
+        else:
+            raise exception.InstanceInvalidState(
+                attr='power_state',
+                instance_uuid=instance.uuid,
+                state=instance.power_state,
+                method='get_diagnostics')
+
     @wrap_exception()
     @reverts_task_state
     @wrap_instance_event
@@ -3962,7 +4007,6 @@ class ComputeManager(manager.Manager):
         instance.task_state = task_states.SPAWNING
         instance.save()
 
-        network_info = self._get_instance_nw_info(context, instance)
         bdms = objects.BlockDeviceMappingList.get_by_instance_uuid(
                 context, instance.uuid)
         block_device_info = self._prep_block_device(context, instance, bdms)
@@ -3980,6 +4024,9 @@ class ComputeManager(manager.Manager):
             shelved_image_ref = instance.image_ref
             instance.image_ref = image['id']
 
+        self.network_api.migrate_instance_finish(context, instance,
+            {'source_compute': '', 'dest_compute': self.host})
+        network_info = self._get_instance_nw_info(context, instance)
         try:
             with rt.instance_claim(context, instance, limits):
                 self.driver.spawn(context, instance, image, injected_files=[],
@@ -4650,6 +4697,39 @@ class ComputeManager(manager.Manager):
                                    self._rollback_live_migration,
                                    block_migration, migrate_data)
 
+    def _live_migration_cleanup_flags(self, block_migration, migrate_data):
+        """Determine whether disks or intance path need to be cleaned up after
+        live migration (at source on success, at destination on rollback)
+
+        Block migration needs empty image at destination host before migration
+        starts, so if any failure occurs, any empty images has to be deleted.
+
+        Also Volume backed live migration w/o shared storage needs to delete
+        newly created instance-xxx dir on the destination as a part of its
+        rollback process
+
+        :param block_migration: if true, it was a block migration
+        :param migrate_data: implementation specific data
+        :returns: (bool, bool) -- do_cleanup, destroy_disks
+        """
+        # NOTE(angdraug): block migration wouldn't have been allowed if either
+        #                 block storage or instance path were shared
+        is_shared_block_storage = not block_migration
+        is_shared_instance_path = not block_migration
+        if migrate_data:
+            is_shared_block_storage = migrate_data.get(
+                    'is_shared_block_storage', is_shared_block_storage)
+            is_shared_instance_path = migrate_data.get(
+                    'is_shared_instance_path', is_shared_instance_path)
+
+        # No instance booting at source host, but instance dir
+        # must be deleted for preparing next block migration
+        # must be deleted for preparing next live migration w/o shared storage
+        do_cleanup = block_migration or not is_shared_instance_path
+        destroy_disks = not is_shared_block_storage
+
+        return (do_cleanup, destroy_disks)
+
     @wrap_exception()
     @wrap_instance_fault
     def _post_live_migration(self, ctxt, instance,
@@ -4715,16 +4795,15 @@ class ComputeManager(manager.Manager):
         self.compute_rpcapi.post_live_migration_at_destination(ctxt,
                 instance, block_migration, dest)
 
-        # No instance booting at source host, but instance dir
-        # must be deleted for preparing next block migration
-        # must be deleted for preparing next live migration w/o shared storage
-        is_shared_storage = True
-        if migrate_data:
-            is_shared_storage = migrate_data.get('is_shared_storage', True)
-        if block_migration or not is_shared_storage:
-            self.driver.cleanup(ctxt, instance, network_info)
+        do_cleanup, destroy_disks = self._live_migration_cleanup_flags(
+                block_migration, migrate_data)
+
+        if do_cleanup:
+            self.driver.cleanup(ctxt, instance, network_info,
+                                destroy_disks=destroy_disks,
+                                migrate_data=migrate_data)
         else:
-            # self.driver.destroy() usually performs  vif unplugging
+            # self.driver.cleanup() usually performs  vif unplugging
             # but we must do it explicitly here when block_migration
             # is false, as the network devices at the source must be
             # torn down
@@ -4847,20 +4926,13 @@ class ComputeManager(manager.Manager):
         self._notify_about_instance_usage(context, instance,
                                           "live_migration._rollback.start")
 
-        # Block migration needs empty image at destination host
-        # before migration starts, so if any failure occurs,
-        # any empty images has to be deleted.
-        # Also Volume backed live migration w/o shared storage needs to delete
-        # newly created instance-xxx dir on the destination as a part of its
-        # rollback process
-        is_volume_backed = False
-        is_shared_storage = True
-        if migrate_data:
-            is_volume_backed = migrate_data.get('is_volume_backed', False)
-            is_shared_storage = migrate_data.get('is_shared_storage', True)
-        if block_migration or (is_volume_backed and not is_shared_storage):
-            self.compute_rpcapi.rollback_live_migration_at_destination(context,
-                    instance, dest)
+        do_cleanup, destroy_disks = self._live_migration_cleanup_flags(
+                block_migration, migrate_data)
+
+        if do_cleanup:
+            self.compute_rpcapi.rollback_live_migration_at_destination(
+                    context, instance, dest, destroy_disks=destroy_disks,
+                    migrate_data=migrate_data)
 
         self._notify_about_instance_usage(context, instance,
                                           "live_migration._rollback.end")
@@ -4868,7 +4940,9 @@ class ComputeManager(manager.Manager):
     @object_compat
     @wrap_exception()
     @wrap_instance_fault
-    def rollback_live_migration_at_destination(self, context, instance):
+    def rollback_live_migration_at_destination(self, context, instance,
+                                               destroy_disks=True,
+                                               migrate_data=None):
         """Cleaning up image directory that is created pre_live_migration.
 
         :param context: security context
@@ -4887,8 +4961,9 @@ class ComputeManager(manager.Manager):
         #             from remote volumes if necessary
         block_device_info = self._get_instance_block_device_info(context,
                                                                  instance)
-        self.driver.rollback_live_migration_at_destination(context, instance,
-                        network_info, block_device_info)
+        self.driver.rollback_live_migration_at_destination(
+                        context, instance, network_info, block_device_info,
+                        destroy_disks=destroy_disks, migrate_data=migrate_data)
         self._notify_about_instance_usage(
                         context, instance, "live_migration.rollback.dest.end",
                         network_info=network_info)
@@ -5325,34 +5400,43 @@ class ComputeManager(manager.Manager):
                       'num_vm_instances': num_vm_instances})
 
         for db_instance in db_instances:
-            if db_instance['task_state'] is not None:
-                LOG.info(_("During sync_power_state the instance has a "
-                           "pending task (%(task)s). Skip."),
-                         {'task': db_instance['task_state']},
-                         instance=db_instance)
-                continue
-            # No pending tasks. Now try to figure out the real vm_power_state.
+            #NOTE(melwitt): This must be synchronized as we query state from
+            #               two separate sources, the driver and the database.
+            #               They are set (in stop_instance) and read, in sync.
+            @utils.synchronized(db_instance.uuid)
+            def query_driver_power_state_and_sync():
+                self._query_driver_power_state_and_sync(context, db_instance)
+
             try:
-                try:
-                    vm_instance = self.driver.get_info(db_instance)
-                    vm_power_state = vm_instance['state']
-                except exception.InstanceNotFound:
-                    vm_power_state = power_state.NOSTATE
-                # Note(maoy): the above get_info call might take a long time,
-                # for example, because of a broken libvirt driver.
-                try:
-                    self._sync_instance_power_state(context,
-                                                    db_instance,
-                                                    vm_power_state,
-                                                    use_slave=True)
-                except exception.InstanceNotFound:
-                    # NOTE(hanlind): If the instance gets deleted during sync,
-                    # silently ignore and move on to next instance.
-                    continue
+                query_driver_power_state_and_sync()
             except Exception:
-                LOG.exception(_("Periodic sync_power_state task had an error "
-                                "while processing an instance."),
-                                instance=db_instance)
+                LOG.exception(_LE("Periodic sync_power_state task had an "
+                                  "error while processing an instance."),
+                              instance=db_instance)
+
+    def _query_driver_power_state_and_sync(self, context, db_instance):
+        if db_instance.task_state is not None:
+            LOG.info(_LI("During sync_power_state the instance has a "
+                         "pending task (%(task)s). Skip."),
+                     {'task': db_instance.task_state}, instance=db_instance)
+            return
+        # No pending tasks. Now try to figure out the real vm_power_state.
+        try:
+            vm_instance = self.driver.get_info(db_instance)
+            vm_power_state = vm_instance['state']
+        except exception.InstanceNotFound:
+            vm_power_state = power_state.NOSTATE
+        # Note(maoy): the above get_info call might take a long time,
+        # for example, because of a broken libvirt driver.
+        try:
+            self._sync_instance_power_state(context,
+                                            db_instance,
+                                            vm_power_state,
+                                            use_slave=True)
+        except exception.InstanceNotFound:
+            # NOTE(hanlind): If the instance gets deleted during sync,
+            # silently ignore.
+            pass
 
     def _sync_instance_power_state(self, context, db_instance, vm_power_state,
                                    use_slave=False):

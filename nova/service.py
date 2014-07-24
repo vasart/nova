@@ -29,8 +29,8 @@ from nova import conductor
 from nova import context
 from nova import debugger
 from nova import exception
+from nova.i18n import _
 from nova.objects import base as objects_base
-from nova.openstack.common.gettextutils import _
 from nova.openstack.common import importutils
 from nova.openstack.common import log as logging
 from nova.openstack.common import processutils
@@ -352,6 +352,14 @@ class WSGIService(object):
         # Pull back actual port used
         self.port = self.server.port
         self.backdoor_port = None
+
+    def reset(self):
+        """Reset server greenpool size to default.
+
+        :returns: None
+
+        """
+        self.server.reset()
 
     def _get_manager(self):
         """Initialize a Manager object appropriate for this service.

@@ -15,6 +15,7 @@
 
 """Tests for the aggregates admin api."""
 
+import mock
 from webob import exc
 
 from nova.api.openstack.compute.plugins.v3 import aggregates
@@ -439,8 +440,9 @@ class AggregateTestCase(test.NoDBTestCase):
                           self.controller._remove_host,
                 self.req, "1", body={"remove_host": 1})
 
-    def test_remove_host_with_missing_host(self):
-        self.assertRaises(exc.HTTPBadRequest, self.controller._remove_host,
+    def test_remove_host_with_missing_host_empty(self):
+        self.assertRaises(exception.ValidationError,
+                          self.controller._remove_host,
                 self.req, "1", body={"remove_host": {}})
 
     def test_remove_host_with_missing_host(self):
@@ -545,3 +547,12 @@ class AggregateTestCase(test.NoDBTestCase):
 
         self.assertRaises(exc.HTTPNotFound, self.controller.delete,
                 self.req, "bogus_aggregate")
+
+    def test_delete_aggregate_with_host(self):
+        with mock.patch.object(self.controller.api, "delete_aggregate",
+                               side_effect=exception.InvalidAggregateAction(
+                               action="delete", aggregate_id="agg1",
+                               reason="not empty")):
+            self.assertRaises(exc.HTTPBadRequest,
+                              self.controller.delete,
+                              self.req, "agg1")

@@ -40,7 +40,7 @@ import math
 from oslo.config import cfg
 import six.moves.urllib.parse as urlparse
 
-from nova.openstack.common.gettextutils import _
+from nova.i18n import _
 from nova.openstack.common import jsonutils
 from nova.openstack.common import log as logging
 from nova.openstack.common import units
@@ -249,13 +249,13 @@ class XenAPIDriver(driver.ComputeDriver):
         self._vmops.change_instance_metadata(instance, diff)
 
     def destroy(self, context, instance, network_info, block_device_info=None,
-                destroy_disks=True):
+                destroy_disks=True, migrate_data=None):
         """Destroy VM instance."""
         self._vmops.destroy(instance, network_info, block_device_info,
                             destroy_disks)
 
     def cleanup(self, context, instance, network_info, block_device_info=None,
-                destroy_disks=True):
+                destroy_disks=True, migrate_data=None):
         """Cleanup after instance being destroyed by Hypervisor."""
         pass
 
@@ -344,6 +344,10 @@ class XenAPIDriver(driver.ComputeDriver):
         """Return data about VM diagnostics."""
         return self._vmops.get_diagnostics(instance)
 
+    def get_instance_diagnostics(self, instance):
+        """Return data about VM diagnostics."""
+        return self._vmops.get_instance_diagnostics(instance)
+
     def get_all_bw_counters(self, instances):
         """Return bandwidth usage counters for each interface on each
            running VM.
@@ -400,16 +404,16 @@ class XenAPIDriver(driver.ComputeDriver):
     def attach_volume(self, context, connection_info, instance, mountpoint,
                       disk_bus=None, device_type=None, encryption=None):
         """Attach volume storage to VM instance."""
-        return self._volumeops.attach_volume(connection_info,
-                                             instance['name'],
-                                             mountpoint)
+        self._volumeops.attach_volume(connection_info,
+                                      instance['name'],
+                                      mountpoint)
 
     def detach_volume(self, connection_info, instance, mountpoint,
                       encryption=None):
         """Detach volume storage from VM instance."""
-        return self._volumeops.detach_volume(connection_info,
-                                             instance['name'],
-                                             mountpoint)
+        self._volumeops.detach_volume(connection_info,
+                                      instance['name'],
+                                      mountpoint)
 
     def get_console_pool_info(self, console_type):
         xs_url = urlparse.urlparse(CONF.xenserver.connection_url)
@@ -535,7 +539,9 @@ class XenAPIDriver(driver.ComputeDriver):
 
     def rollback_live_migration_at_destination(self, context, instance,
                                                network_info,
-                                               block_device_info):
+                                               block_device_info,
+                                               destroy_disks=True,
+                                               migrate_data=None):
         # NOTE(johngarbutt) Destroying the VM is not appropriate here
         # and in the cases where it might make sense,
         # XenServer has already done it.

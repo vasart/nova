@@ -27,7 +27,7 @@ from nova import db
 from nova import exception
 from nova.network import driver
 from nova.network import linux_net
-from nova.objects import fixed_ip as fixed_ip_obj
+from nova import objects
 from nova.openstack.common import fileutils
 from nova.openstack.common import jsonutils
 from nova.openstack.common import log as logging
@@ -429,10 +429,10 @@ class LinuxNetworkTestCase(test.NoDBTestCase):
             self.assertTrue(data['allocated'])
             self.assertTrue(data['leased'])
             self.assertTrue(lease[0] > seconds_since_epoch)
-            self.assertTrue(lease[1] == data['vif_address'])
-            self.assertTrue(lease[2] == data['address'])
-            self.assertTrue(lease[3] == data['instance_hostname'])
-            self.assertTrue(lease[4] == '*')
+            self.assertEqual(data['vif_address'], lease[1])
+            self.assertEqual(data['address'], lease[2])
+            self.assertEqual(data['instance_hostname'], lease[3])
+            self.assertEqual('*', lease[4])
 
     def test_get_dhcp_leases_for_nw01(self):
         self.flags(host='fake_instance01')
@@ -446,15 +446,15 @@ class LinuxNetworkTestCase(test.NoDBTestCase):
             data = get_associated(self.context, 1, address=lease[2])[0]
             self.assertTrue(data['leased'])
             self.assertTrue(lease[0] > seconds_since_epoch)
-            self.assertTrue(lease[1] == data['vif_address'])
-            self.assertTrue(lease[2] == data['address'])
-            self.assertTrue(lease[3] == data['instance_hostname'])
-            self.assertTrue(lease[4] == '*')
+            self.assertEqual(data['vif_address'], lease[1])
+            self.assertEqual(data['address'], lease[2])
+            self.assertEqual(data['instance_hostname'], lease[3])
+            self.assertEqual('*', lease[4])
 
     def test_dhcp_opts_not_default_gateway_network(self):
         expected = "NW-0,3"
-        fixedip = fixed_ip_obj.FixedIPList.get_by_network(self.context,
-                                                          {'id': 0})[0]
+        fixedip = objects.FixedIPList.get_by_network(self.context,
+                                                     {'id': 0})[0]
         actual = self.driver._host_dhcp_opts(fixedip)
         self.assertEqual(actual, expected)
 
@@ -462,15 +462,15 @@ class LinuxNetworkTestCase(test.NoDBTestCase):
         expected = ','.join(['DE:AD:BE:EF:00:00',
                              'fake_instance00.novalocal',
                              '192.168.0.100'])
-        fixedip = fixed_ip_obj.FixedIPList.get_by_network(self.context,
-                                                          {'id': 0})[0]
+        fixedip = objects.FixedIPList.get_by_network(self.context,
+                                                     {'id': 0})[0]
         actual = self.driver._host_dhcp(fixedip)
         self.assertEqual(actual, expected)
 
     def test_host_dns_without_default_gateway_network(self):
         expected = "192.168.0.100\tfake_instance00.novalocal"
-        fixedip = fixed_ip_obj.FixedIPList.get_by_network(self.context,
-                                                          {'id': 0})[0]
+        fixedip = objects.FixedIPList.get_by_network(self.context,
+                                                     {'id': 0})[0]
         actual = self.driver._host_dns(fixedip)
         self.assertEqual(actual, expected)
 
@@ -520,7 +520,7 @@ class LinuxNetworkTestCase(test.NoDBTestCase):
         info = {}
 
         @staticmethod
-        def test_ensure(vlan, bridge, interface, network, mac_address):
+        def test_ensure(vlan, bridge, interface, network, mac_address, mtu):
             info['passed_interface'] = interface
 
         self.stubs.Set(linux_net.LinuxBridgeInterfaceDriver,

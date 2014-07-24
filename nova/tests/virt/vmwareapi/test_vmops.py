@@ -27,11 +27,11 @@ from nova.openstack.common import uuidutils
 from nova import test
 from nova.tests import fake_instance
 import nova.tests.image.fake
+from nova.tests.virt.vmwareapi import fake as vmwareapi_fake
 from nova.tests.virt.vmwareapi import stubs
 from nova.virt.vmwareapi import driver
 from nova.virt.vmwareapi import ds_util
 from nova.virt.vmwareapi import error_util
-from nova.virt.vmwareapi import fake as vmwareapi_fake
 from nova.virt.vmwareapi import vim_util
 from nova.virt.vmwareapi import vm_util
 from nova.virt.vmwareapi import vmops
@@ -184,7 +184,7 @@ class VMwareVMOpsTestCase(test.NoDBTestCase):
                 ref=dc_ref,
                 name='fake-name',
                 vmFolder='fake-folder')
-        path = ds_util.build_datastore_path(ds_name, base_name)
+        path = ds_util.DatastorePath(ds_name, base_name)
         ds_util.mkdir = mock.Mock()
         return ds_name, ds_ref, ops, path, dc_ref
 
@@ -428,7 +428,7 @@ class VMwareVMOpsTestCase(test.NoDBTestCase):
             _get_vm_ref_from_name.assert_called_once_with(self._session,
                                                           'fake_uuid-rescue')
             _power_off.assert_called_once_with(vm_rescue_ref)
-            _destroy_instance.assert_called_once_with(r_instance, None,
+            _destroy_instance.assert_called_once_with(r_instance,
                 instance_name='fake_uuid-rescue')
 
     def _test_finish_migration(self, power_on=True, resize_instance=False):
@@ -569,7 +569,7 @@ class VMwareVMOpsTestCase(test.NoDBTestCase):
         recorded_methods = [c[1][1] for c in mock_call_method.mock_calls]
         self.assertEqual(expected_methods, recorded_methods)
 
-    @mock.patch('nova.virt.vmwareapi.vm_util.get_datastore')
+    @mock.patch('nova.virt.vmwareapi.ds_util.get_datastore')
     @mock.patch(
         'nova.virt.vmwareapi.vmops.VMwareVCVMOps.get_datacenter_ref_and_name')
     @mock.patch('nova.virt.vmwareapi.vm_util.get_mo_id_from_instance',
@@ -637,7 +637,17 @@ class VMwareVMOpsTestCase(test.NoDBTestCase):
                               power_on=power_on)
 
             mock_is_neutron.assert_called_once_with()
-            self.assertTrue(3, len(mock_mkdir.mock_calls))
+
+            expected_mkdir_calls = 3
+            if block_device_info and len(block_device_info.get(
+                    'block_device_mapping', [])) > 0:
+                # if block_device_info contains key 'block_device_mapping'
+                # with any information, method mkdir wouldn't be called in
+                # method self._vmops.spawn()
+                expected_mkdir_calls = 0
+
+            self.assertEqual(expected_mkdir_calls, len(mock_mkdir.mock_calls))
+
             mock_get_vnc_port.assert_called_once_with(self._session)
             mock_get_mo_id_for_instance.assert_called_once_with(self._instance)
             mock_get_res_pool_ref.assert_called_once_with(

@@ -28,8 +28,8 @@ import sys
 from oslo.config import cfg
 import webob.exc
 
+from nova.i18n import _
 from nova.openstack.common import excutils
-from nova.openstack.common.gettextutils import _
 from nova.openstack.common import log as logging
 from nova import safe_utils
 
@@ -55,7 +55,7 @@ class ConvertedException(webob.exc.WSGIHTTPException):
 
 def _cleanse_dict(original):
     """Strip all admin_password, new_pass, rescue_pass keys from a dict."""
-    return dict((k, v) for k, v in original.iteritems() if not "_pass" in k)
+    return dict((k, v) for k, v in original.iteritems() if "_pass" not in k)
 
 
 def wrap_exception(notifier=None, get_notifier=None):
@@ -402,6 +402,10 @@ class MultiplePortsNotApplicable(Invalid):
     msg_fmt = _("Failed to launch instances: %(reason)s")
 
 
+class InvalidFixedIpAndMaxCountRequest(Invalid):
+    msg_fmt = _("Failed to launch instances: %(reason)s")
+
+
 class ServiceUnavailable(Invalid):
     msg_fmt = _("Service is unavailable at this time.")
 
@@ -644,6 +648,10 @@ class NetworkRequiresSubnet(Invalid):
 class ExternalNetworkAttachForbidden(Forbidden):
     msg_fmt = _("It is not allowed to create an interface on "
                 "external network %(network_uuid)s")
+
+
+class NetworkMissingPhysicalNetwork(NovaException):
+    msg_fmt = _("Physical network is missing for network %(network_uuid)s")
 
 
 class DatastoreNotFound(NotFound):
@@ -963,6 +971,11 @@ class FlavorNotFoundByName(FlavorNotFound):
 class FlavorAccessNotFound(NotFound):
     msg_fmt = _("Flavor access not found for %(flavor_id)s / "
                 "%(project_id)s combination.")
+
+
+class FlavorExtraSpecUpdateCreateFailed(NovaException):
+    msg_fmt = _("Flavor %(id)d extra spec cannot be updated or created "
+                "after %(retries)d retries.")
 
 
 class CellNotFound(NotFound):
@@ -1580,9 +1593,16 @@ class InvalidWatchdogAction(Invalid):
     msg_fmt = _("Provided watchdog action (%(action)s) is not supported.")
 
 
-class NoBlockMigrationForConfigDriveInLibVirt(NovaException):
-    msg_fmt = _("Block migration of instances with config drives is not "
-                "supported in libvirt.")
+class NoLiveMigrationForConfigDriveInLibVirt(NovaException):
+    msg_fmt = _("Live migration of instances with config drives is not "
+                "supported in libvirt unless libvirt instance path and "
+                "drive data is shared across compute nodes.")
+
+
+class LiveMigrationWithOldNovaNotSafe(NovaException):
+    msg_fmt = _("Host %(server)s is running an old version of Nova, "
+                "live migrations involving that version may cause data loss. "
+                "Upgrade Nova on %(server)s and try again.")
 
 
 class UnshelveException(NovaException):

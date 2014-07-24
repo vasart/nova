@@ -134,6 +134,15 @@ class BlockDeviceTestCase(test.NoDBTestCase):
         self.assertEqual(block_device.strip_prefix('xvda'), 'a')
         self.assertEqual(block_device.strip_prefix('vda'), 'a')
 
+    def test_get_device_letter(self):
+        self.assertEqual(block_device.get_device_letter(''), '')
+        self.assertEqual(block_device.get_device_letter('/dev/sda1'), 'a')
+        self.assertEqual(block_device.get_device_letter('/dev/xvdb'), 'b')
+        self.assertEqual(block_device.get_device_letter('/dev/d'), 'd')
+        self.assertEqual(block_device.get_device_letter('a'), 'a')
+        self.assertEqual(block_device.get_device_letter('sdb2'), 'b')
+        self.assertEqual(block_device.get_device_letter('vdc'), 'c')
+
     def test_volume_in_mapping(self):
         swap = {'device_name': '/dev/sdb',
                 'swap_size': 1}
@@ -206,6 +215,20 @@ class BlockDeviceTestCase(test.NoDBTestCase):
         for expected, bdm in zip(expected_results, self.new_mapping):
             res = block_device.new_format_is_ephemeral(bdm)
             self.assertEqual(expected, res)
+
+    def test_validate_device_name(self):
+        for value in [' ', 10, None, 'a' * 260]:
+            self.assertRaises(exception.InvalidBDMFormat,
+                              block_device.validate_device_name,
+                              value)
+
+    def test_validate_and_default_volume_size(self):
+        bdm = {}
+        for value in [-1, 'a', 2.5]:
+            bdm['volume_size'] = value
+            self.assertRaises(exception.InvalidBDMFormat,
+                              block_device.validate_and_default_volume_size,
+                              bdm)
 
 
 class TestBlockDeviceDict(test.NoDBTestCase):
@@ -345,7 +368,7 @@ class TestBlockDeviceDict(test.NoDBTestCase):
         self.assertIn('field1', dev_dict)
         self.assertIn('field2', dev_dict)
         self.assertIn('db_field1', dev_dict)
-        self.assertFalse('db_field2'in dev_dict)
+        self.assertNotIn('db_field2', dev_dict)
 
         # Make sure all expected fields are defaulted
         dev_dict = block_device.BlockDeviceDict({'field1': 'foo'})
@@ -353,7 +376,7 @@ class TestBlockDeviceDict(test.NoDBTestCase):
         self.assertIn('field2', dev_dict)
         self.assertIsNone(dev_dict['field2'])
         self.assertNotIn('db_field1', dev_dict)
-        self.assertFalse('db_field2'in dev_dict)
+        self.assertNotIn('db_field2', dev_dict)
 
         # Unless they are not meant to be
         dev_dict = block_device.BlockDeviceDict({'field1': 'foo'},
@@ -361,7 +384,17 @@ class TestBlockDeviceDict(test.NoDBTestCase):
         self.assertIn('field1', dev_dict)
         self.assertNotIn('field2', dev_dict)
         self.assertNotIn('db_field1', dev_dict)
-        self.assertFalse('db_field2'in dev_dict)
+        self.assertNotIn('db_field2', dev_dict)
+
+        # Passing kwargs to constructor works
+        dev_dict = block_device.BlockDeviceDict(field1='foo')
+        self.assertIn('field1', dev_dict)
+        self.assertIn('field2', dev_dict)
+        self.assertIsNone(dev_dict['field2'])
+        dev_dict = block_device.BlockDeviceDict(
+                {'field1': 'foo'}, field2='bar')
+        self.assertEqual('foo', dev_dict['field1'])
+        self.assertEqual('bar', dev_dict['field2'])
 
     def test_validate(self):
         self.assertRaises(exception.InvalidBDMFormat,
@@ -509,7 +542,7 @@ class TestBlockDeviceDict(test.NoDBTestCase):
             mapping_bdm = fake_block_device.FakeDbBlockDeviceDict(
                     bdm).get_image_mapping()
             for fld in removed_fields:
-                self.assertTrue(fld not in mapping_bdm)
+                self.assertNotIn(fld, mapping_bdm)
 
     def _test_snapshot_from_bdm(self, template):
         snapshot = block_device.snapshot_from_bdm('new-snapshot-id', template)

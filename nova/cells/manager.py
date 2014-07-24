@@ -27,9 +27,10 @@ from nova.cells import state as cells_state
 from nova.cells import utils as cells_utils
 from nova import context
 from nova import exception
+from nova.i18n import _
 from nova import manager
 from nova import objects
-from nova.openstack.common.gettextutils import _
+from nova.objects import base as base_obj
 from nova.openstack.common import importutils
 from nova.openstack.common import log as logging
 from nova.openstack.common import periodic_task
@@ -72,7 +73,7 @@ class CellsManager(manager.Manager):
     Scheduling requests get passed to the scheduler class.
     """
 
-    target = oslo_messaging.Target(version='1.27')
+    target = oslo_messaging.Target(version='1.28')
 
     def __init__(self, *args, **kwargs):
         LOG.warn(_('The cells feature of Nova is considered experimental '
@@ -417,6 +418,8 @@ class CellsManager(manager.Manager):
 
     def bdm_update_or_create_at_top(self, ctxt, bdm, create=None):
         """BDM was created/updated in this cell.  Tell the API cells."""
+        # TODO(ndipanov): Move inter-cell RPC to use objects
+        bdm = base_obj.obj_to_primitive(bdm)
         self.msg_runner.bdm_update_or_create_at_top(ctxt, bdm, create=create)
 
     def bdm_destroy_at_top(self, ctxt, instance_uuid, device_name=None,

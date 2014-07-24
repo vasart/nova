@@ -467,9 +467,10 @@ class TestNeutronv2Base(test.TestCase):
         self.assertEqual('my_mac%s' % id_suffix, nw_inf[index]['address'])
         self.assertEqual('10.0.%s.0/24' % id_suffix,
             nw_inf[index]['network']['subnets'][0]['cidr'])
-        self.assertTrue(model.IP(address='8.8.%s.1' % id_suffix,
-                                 version=4, type='dns') in
-                        nw_inf[index]['network']['subnets'][0]['dns'])
+
+        ip_addr = model.IP(address='8.8.%s.1' % id_suffix,
+                           version=4, type='dns')
+        self.assertIn(ip_addr, nw_inf[index]['network']['subnets'][0]['dns'])
 
     def _get_instance_nw_info(self, number):
         api = neutronapi.API()
@@ -2310,6 +2311,21 @@ class TestNeutronv2WithMock(test.TestCase):
                               self.context, requested_networks, 1)
 
             list_ports_mock.assert_called_once_with(**list_port_mock_params)
+
+    def test_allocate_floating_ip_exceed_limit(self):
+        # Verify that the correct exception is thrown when quota exceed
+        pool_name = 'dummy'
+        api = neutronapi.API()
+        with contextlib.nested(
+            mock.patch.object(client.Client, 'create_floatingip'),
+            mock.patch.object(api,
+                '_get_floating_ip_pool_id_by_name_or_id')) as (
+            create_mock, get_mock):
+            create_mock.side_effect = neutronv2.exceptions.OverQuotaClient()
+
+            self.assertRaises(exception.FloatingIpLimitExceeded,
+                          api.allocate_floating_ip,
+                          self.context, pool_name)
 
 
 class TestNeutronv2ModuleMethods(test.TestCase):

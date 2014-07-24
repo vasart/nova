@@ -24,7 +24,7 @@ import sys
 
 from oslo.config import cfg
 
-from nova.openstack.common.gettextutils import _
+from nova.i18n import _
 from nova.openstack.common import importutils
 from nova.openstack.common import log as logging
 from nova import utils
@@ -300,7 +300,7 @@ class ComputeDriver(object):
         raise NotImplementedError()
 
     def destroy(self, context, instance, network_info, block_device_info=None,
-                destroy_disks=True):
+                destroy_disks=True, migrate_data=None):
         """Destroy the specified instance from the Hypervisor.
 
         If the instance is not found (for example if networking failed), this
@@ -314,11 +314,12 @@ class ComputeDriver(object):
         :param block_device_info: Information about block devices that should
                                   be detached from the instance.
         :param destroy_disks: Indicates if disks should be destroyed
+        :param migrate_data: implementation specific params
         """
         raise NotImplementedError()
 
     def cleanup(self, context, instance, network_info, block_device_info=None,
-                destroy_disks=True):
+                destroy_disks=True, migrate_data=None):
         """Cleanup the instance resources .
 
         Instance should have been destroyed from the Hypervisor before calling
@@ -331,7 +332,7 @@ class ComputeDriver(object):
         :param block_device_info: Information about block devices that should
                                   be detached from the instance.
         :param destroy_disks: Indicates if disks should be destroyed
-
+        :param migrate_data: implementation specific params
         """
         raise NotImplementedError()
 
@@ -397,6 +398,13 @@ class ComputeDriver(object):
         :param instance: nova.objects.instance.Instance
         """
         # TODO(Vek): Need to pass context in for access to auth_token
+        raise NotImplementedError()
+
+    def get_instance_diagnostics(self, instance):
+        """Return data about VM diagnostics.
+
+        :param instance: nova.objects.instance.Instance
+        """
         raise NotImplementedError()
 
     def get_all_bw_counters(self, instances):
@@ -660,13 +668,18 @@ class ComputeDriver(object):
 
     def rollback_live_migration_at_destination(self, context, instance,
                                                network_info,
-                                               block_device_info):
+                                               block_device_info,
+                                               destroy_disks=True,
+                                               migrate_data=None):
         """Clean up destination node after a failed live migration.
 
         :param context: security context
         :param instance: instance object that was being migrated
         :param network_info: instance network information
         :param block_device_info: instance block device information
+        :param destroy_disks:
+            if true, destroy disks at destination during cleanup
+        :param migrate_data: implementation specific params
 
         """
         raise NotImplementedError()
@@ -1294,6 +1307,18 @@ class ComputeDriver(object):
                                           *block_device_lists):
         """Default the missing device names in the block device mapping."""
         raise NotImplementedError()
+
+    def is_supported_fs_format(self, fs_type):
+        """Check whether the file format is supported by this driver
+
+        :param fs_type: the file system type to be checked,
+                        the validate values are defined at disk API module.
+        """
+        # NOTE(jichenjc): Return False here so that every hypervisor
+        #                 need to define their supported file system
+        #                 type and implement this function at their
+        #                 virt layer.
+        return False
 
 
 def load_compute_driver(virtapi, compute_driver=None):

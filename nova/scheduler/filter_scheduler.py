@@ -25,8 +25,8 @@ from oslo.config import cfg
 
 from nova.compute import rpcapi as compute_rpcapi
 from nova import exception
-from nova.objects import instance_group as instance_group_obj
-from nova.openstack.common.gettextutils import _
+from nova.i18n import _
+from nova import objects
 from nova.openstack.common import log as logging
 from nova.pci import pci_request
 from nova import rpc
@@ -89,7 +89,7 @@ class FilterScheduler(driver.Scheduler):
         scheduler_utils.populate_retry(filter_properties,
                                        instance_uuids[0])
         weighed_hosts = self._schedule(context, request_spec,
-                                       filter_properties, instance_uuids)
+                                       filter_properties)
 
         # NOTE: Pop instance_uuids as individual creates do not need the
         # set of uuids. Do not pop before here as the upper exception
@@ -137,9 +137,8 @@ class FilterScheduler(driver.Scheduler):
     def select_destinations(self, context, request_spec, filter_properties):
         """Selects a filtered set of hosts and nodes."""
         num_instances = request_spec['num_instances']
-        instance_uuids = request_spec.get('instance_uuids')
         selected_hosts = self._schedule(context, request_spec,
-                                        filter_properties, instance_uuids)
+                                        filter_properties)
 
         # Couldn't fulfill the request_spec
         if len(selected_hosts) < num_instances:
@@ -209,8 +208,7 @@ class FilterScheduler(driver.Scheduler):
         scheduler_hints = filter_properties.get('scheduler_hints') or {}
         group_hint = scheduler_hints.get('group', None)
         if group_hint:
-            group = instance_group_obj.InstanceGroup.get_by_hint(context,
-                        group_hint)
+            group = objects.InstanceGroup.get_by_hint(context, group_hint)
             policies = set(('anti-affinity', 'affinity'))
             if any((policy in policies) for policy in group.policies):
                 update_group_hosts = True
@@ -221,14 +219,14 @@ class FilterScheduler(driver.Scheduler):
                 filter_properties['group_policies'] = group.policies
         return update_group_hosts
 
-    def _schedule(self, context, request_spec, filter_properties,
-                  instance_uuids=None):
+    def _schedule(self, context, request_spec, filter_properties):
         """Returns a list of hosts that meet the required specs,
         ordered by their fitness.
         """
         elevated = context.elevated()
         instance_properties = request_spec['instance_properties']
         instance_type = request_spec.get("instance_type", None)
+        instance_uuids = request_spec.get("instance_uuids", None)
 
         update_group_hosts = self._setup_instance_group(context,
                 filter_properties)
