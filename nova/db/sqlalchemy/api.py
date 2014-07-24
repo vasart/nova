@@ -6101,6 +6101,8 @@ def get_periodic_check_results(context, num_results):
 
 
 def store_periodic_check(context, check):
+    check['updated_at'] = time.time()
+    check['deleted_at'] = time.time()
     check_ref = models.PeriodicChecks()
     check_ref.update(check)
     try:
