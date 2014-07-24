@@ -84,10 +84,11 @@ class PeriodicChecks(object):
     def run_checks(self, kwargs):
         ''' form a temporary compute pool to prevent unavailability of pool 
         during running checks'''
-        if(CONF.periodic_checks.periodic_tasks_running):
-            '''store data'''
-            check1={'check_id':"ameycheck1",'host':"host1234",'result':"result of checks",'status':'on'}
-            db.store_periodic_check(context, check1)
+        '''store data'''
+        check1={'check_id':"ameycheck1",'host':"host1234",'result':"p",'status':'on'}
+        db.store_periodic_check(context, check1)
+        if(PeriodicChecks.periodic_tasks_running):
+
             for host in self.compute_nodes:
                 for adapter in adapters:
                     result, turn_on = adapter.is_trusted(host, 'trusted')
@@ -98,7 +99,6 @@ class PeriodicChecks(object):
                     else:
                         '''not store data'''
             self.check_times += 1
-        return self.check_times
         
     
     ''' Add checks through horizon
