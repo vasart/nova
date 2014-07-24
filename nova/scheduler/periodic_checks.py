@@ -80,6 +80,8 @@ class PeriodicChecks(object):
                         current_host = self.compute_nodes[host]
                         current_host['trust_lvl'] = result
                         '''store data'''
+                        check={'check_id':1,'host':current_host,'result':result,'status':'on'}
+                        db.store_periodic_check(context, check)
                     else:
                         '''not store data'''
             self.check_times += 1

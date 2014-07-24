@@ -6100,7 +6100,7 @@ def get_periodic_check_results(context, num_results):
     return results
 
 @require_admin_context
-def store_periodic_checks(context, check):
+def store_periodic_check(context, check):
     check_ref = models.PeriodicChecks()
     check_ref.update(check)
     try:

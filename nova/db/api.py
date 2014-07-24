@@ -1973,5 +1973,11 @@ def get_periodic_check_results(context, num_results=30):
     Default number of results returned are 30.
 
     :returns: First 'max_rows' periodic_check results
-    """ 
+    """
     return IMPL.get_periodic_check_results(context, num_results=num_results)
+
+
+def store_periodic_check(context, check):
+    """ Store the check into the database
+    """
+    return IMPL.store_periodic_check(context, check)
