@@ -28,6 +28,7 @@ from nova.api.openstack.compute import image_metadata
 from nova.api.openstack.compute import images
 from nova.api.openstack.compute import ips
 from nova.api.openstack.compute import limits
+from nova.api.openstack.compute import periodic_checks
 from nova.api.openstack.compute import plugins
 from nova.api.openstack.compute import server_metadata
 from nova.api.openstack.compute import servers
@@ -126,6 +127,14 @@ class APIRouter(nova.api.openstack.APIRouter):
                            controller=server_metadata_controller,
                            action='update_all',
                            conditions={"method": ['PUT']})
+
+        if init_only is None or 'periodic_checks' in init_only:
+            self.resources['periodic_checks'] = \
+                periodic_checks.create_resource()
+            mapper.resource("periodic_check", "periodic_checks",
+                            controller=self.resources['periodic_checks'],
+                            collection={'detail': 'GET'},
+                            member={'action': 'POST'})
 
 
 class APIRouterV3(nova.api.openstack.APIRouterV3):
