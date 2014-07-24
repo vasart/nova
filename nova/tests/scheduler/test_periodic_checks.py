@@ -15,6 +15,7 @@ Tests For Periodic Check.
 import time
 
 from nova import test
+from nova import context
 from nova.openstack.common import periodic_task
 from nova.scheduler import periodic_checks as pc
 
@@ -24,11 +25,14 @@ class PeriodicTestCase(test.NoDBTestCase):
     USES_DB = True
     periodic_cls =  pc.PeriodicChecks
     driver_cls_name = 'nova.scheduler.driver.Scheduler'
+    
 
     def setUp(self):
         super(PeriodicTestCase, self).setUp()
         self.flags(scheduler_driver=self.driver_cls_name)
         self.periodic = self.periodic_cls()
+        self.ctxt = context.get_admin_context()
+
 
     def test__init__(self):
         self.assertEqual(2,self.periodic.check_times)
