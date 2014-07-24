@@ -6101,10 +6101,13 @@ def get_periodic_check_results(context, num_results):
 
 
 def store_periodic_check(context, check):
-    check['updated_at'] = time.time()
-    check['deleted_at'] = time.time()
     check_ref = models.PeriodicChecks()
+    check.pop("updated_at",None)
+    check.pop("created_at",None)
+    check.pop("deleted_at",None)
+    check.pop("deleted",None)
     check_ref.update(check)
+
     try:
         check_ref.save()
     except db_exc.DBDuplicateEntry:
