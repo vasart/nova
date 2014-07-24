@@ -39,8 +39,11 @@ def upgrade(migrate_engine):
     )
     pcr = Table(
         'periodic_check_results', meta, 
+        Column('created_at', DateTime, default=timeutils.utcnow),
+        Column('updated_at', DateTime, onupdate=timeutils.utcnow),
+        Column('deleted_at', DateTime),
+        Column('deleted', Integer, default=0), 
         Column('id', Integer, primary_key=True, nullable=False),
-        Column('created_at', DateTime),
         Column('check_id', String(length=50)),
         Column('host', String(50), nullable=False),
         Column('result', String(5), nullable=False,default=False),

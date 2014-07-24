@@ -92,13 +92,13 @@ class PeriodicTestCase(test.TestCase):
         compute pool
         '''
         self.periodic.turn_off_periodic_check()
-        self.periodic.turn_on_periodic_check()
+        self.periodic.turn_on_periodic_check() 
         time.sleep(5)
         self.assertFalse(None,self.periodic.get_trusted_pool())
 
     def test_add_check(self):
         self.req.environ["nova.context"].is_admin = True
-        dc = {'check_id':'test', 'time_out' : '10', 'port' : '5534', 'status' : 'turn_off', 'server':'localhost'}
+        dc = {'check_id':'test1', 'time_out' : '10', 'port' : '5534', 'status' : 'turn_off', 'server':'localhost'}
         self.periodic.add_check(self.req.environ["nova.context"], dc)
         test_check = self.periodic.get_check_by_id(self.req.environ["nova.context"], dc)
         self.assertEqual(test_check['check_id'], 'test')
