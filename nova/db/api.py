@@ -1963,3 +1963,15 @@ def archive_deleted_rows_for_table(context, tablename, max_rows=None):
     """
     return IMPL.archive_deleted_rows_for_table(context, tablename,
                                                max_rows=max_rows)
+
+
+###################
+
+
+def get_periodic_check_results(context, num_results=30):
+    """ Get the specified number of periodic checks
+    Default number of results returned are 30.
+
+    :returns: First 'max_rows' periodic_check results
+    """ 
+    return IMPL.get_periodic_check_results(context, num_results=num_results)

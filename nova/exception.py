@@ -1550,6 +1550,10 @@ class PciDeviceUnsupportedHypervisor(NovaException):
     msg_fmt = _("%(type)s hypervisor does not support PCI devices")
 
 
+class PeriodicCheckExists(NovaException):
+    msg_fmt = _("Periodic Check with ID %(id)s already exists")
+
+
 class KeyManagerError(NovaException):
     msg_fmt = _("Key manager error: %(reason)s")
 

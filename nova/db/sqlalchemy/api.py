@@ -6092,3 +6092,19 @@ def pci_device_update(context, node_id, address, values):
         device.update(values)
         session.add(device)
     return device
+
+@require_admin_context
+def get_periodic_check_results(context, num_results):
+    results = model_query(context, models.PeriodicChecks).\
+                        limit(num_results)
+    return results
+
+@require_admin_context
+def store_periodic_checks(context, check):
+    check_ref = models.PeriodicChecks()
+    check_ref.update(check)
+    try:
+        check_ref.save()
+    except db_exc.DBDuplicateEntry:
+        raise exception.PeriodicCheckExists(id=check.get('id'))
+    return check_ref
