@@ -10,7 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import uuid
 import webob.exc
 
 from nova.api.openstack import common
@@ -223,10 +222,8 @@ class Controller(wsgi.Controller):
         """
         try:
             periodic_check_dict = body['periodic_check']
-        
-            id = periodic_check_dict['id']
-            if (id == None):
-                id = uuid.uuid4()
+
+            id = len(mock_data) + 1
             name = periodic_check_dict['name']
             desc = periodic_check_dict['desc']
             spacing = periodic_check_dict['spacing']
