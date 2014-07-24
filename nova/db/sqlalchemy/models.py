@@ -1410,7 +1410,6 @@ class PeriodicCheckResults(BASE, NovaBase):
     __tablename__ = 'periodic_check_results'
     __table_args__ = ()
     id = Column(Integer, primary_key=True, autoincrement=True)
-    timestamp = Column(DateTime)
     check_id = Column(String(50), nullable=False)
     host = Column(String(50), nullable=False)
     result = Column(String(5), nullable=False,default=False)
