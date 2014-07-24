@@ -18,11 +18,7 @@ from oslo.config import cfg
 
 from nova import context as context_maker
 from nova import test
-<<<<<<< HEAD
-from nova import context
-=======
 from nova import db
->>>>>>> create configuration for checks in SQL
 from nova.openstack.common import periodic_task
 from nova.scheduler import periodic_checks as pc
 
@@ -62,7 +58,6 @@ class PeriodicTestCase(test.TestCase):
         self.flags(scheduler_driver=self.driver_cls_name)
         self.periodic = self.periodic_cls()
         self.req = FakeRequest()
-        
     def test__init__(self):
         self.assertEqual(2,self.periodic.check_times)
 
