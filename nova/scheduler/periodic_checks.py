@@ -73,15 +73,16 @@ class PeriodicChecks(object):
         ''' form a temporary compute pool to prevent unavailability of pool 
         during running checks'''
         if(PeriodicChecks.periodic_tasks_running):
+            '''store data'''
+            check1={'check_id':1,'host':"1234",'result':"result",'status':'on'}
+            db.store_periodic_check(context, check1)
             for host in self.compute_nodes:
                 for adapter in adapters:
                     result, turn_on = adapter.is_trusted(host, 'trusted')
                     if turn_on:
                         current_host = self.compute_nodes[host]
                         current_host['trust_lvl'] = result
-                        '''store data'''
-                        check={'check_id':1,'host':current_host,'result':result,'status':'on'}
-                        db.store_periodic_check(context, check)
+
                     else:
                         '''not store data'''
             self.check_times += 1
