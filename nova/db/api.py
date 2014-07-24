@@ -1963,3 +1963,57 @@ def archive_deleted_rows_for_table(context, tablename, max_rows=None):
     """
     return IMPL.archive_deleted_rows_for_table(context, tablename,
                                                max_rows=max_rows)
+
+
+###################
+
+
+def get_periodic_check_results(context, num_results=30):
+    """ Get the specified number of periodic checks
+    Default number of results returned are 30.
+
+    :returns: First 'max_rows' periodic_check results
+    """
+    return IMPL.get_periodic_check_results(context, num_results=num_results)
+
+
+def store_periodic_check(context, check):
+    """ Store the check into the database
+    """
+    return IMPL.store_periodic_check(context, check)
+
+    ###################
+
+def periodic_check_get(context, check_id):
+    """Get a periodic check by its id.
+
+    :param context: The security context
+    :param compute_id: ID of the periodic check
+
+    :returns: Dictionary-like object containing properties of the periodic check
+
+    Raises PeriodicCheckNotFound if periodic check with the given ID doesn't exist.
+    """
+    return IMPL.periodic_check_get(context, check_id)
+
+def periodic_check_get_all(context, disabled=None):
+    """Get all periodic checks.
+
+    :returns: List of dictionaries each containing periodic check properties
+    """
+    return IMPL.periodic_check_get_all(context, disabled)
+
+def periodic_check_create(context, values):
+    """Create a new periodic check.
+    """
+    return IMPL.periodic_check_create(context, values)
+
+def periodic_check_update(context, check_id, values):
+    """Update a periodic check.
+    """
+    return IMPL.periodic_check_update(context, check_id, values)
+
+def periodic_check_delete(context, check_id):
+    """delete a periodic check.
+    """
+    return IMPL.periodic_check_delete(context, check_id)

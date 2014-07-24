@@ -538,7 +538,6 @@ def service_update(context, service_id, values):
 
     return service_ref
 
-
 ###################
 
 def compute_node_get(context, compute_id):
@@ -6102,3 +6101,69 @@ def pci_device_update(context, node_id, address, values):
         device.update(values)
         session.add(device)
     return device
+
+""" TODO: add admin context"""
+def get_periodic_check_results(context, num_results):
+    results = model_query(context, models.PeriodicChecks).\
+                        limit(num_results)
+    return results
+
+
+def store_periodic_check(context, check):
+    check_ref = models.PeriodicCheckResults()
+    check_ref.update(check)
+
+    try:
+        check_ref.save()
+    except db_exc.DBDuplicateEntry:
+        raise exception.PeriodicCheckExists(id=check.get('id'))
+    return check_ref
+
+###################
+
+def periodic_check_get(context, check_id):
+    return _periodic_check_get(context, check_id)
+
+def _periodic_check_get(context, check_id, session=None):
+    result = model_query(context, models.PeriodicChecks, session=session).\
+            filter_by(check_id=check_id).\
+            first()
+    if not result:
+        raise exception.PeriodicCheckFound(check_id=check_id)
+    return result
+
+@require_admin_context
+def periodic_check_get_all(context, disabled=None):
+    query = model_query(context, models.PeriodicChecks)
+    
+    if disabled is not None:
+        query = query.filter_by(disabled=disabled)
+    return query.all()
+
+@require_admin_context
+def periodic_check_create(context, values):
+    periodic_check = models.PeriodicChecks()
+    periodic_check.update(values)
+    periodic_check.save()
+
+    return periodic_check
+
+@require_admin_context
+def periodic_check_update(context, check_id, values):
+    session = get_session()
+    with session.begin():
+        periodic_check = _periodic_check_get(context, check_id,
+                                                session=session)
+        periodic_check.update(values)
+
+    return periodic_check
+
+@require_admin_context
+def periodic_check_delete(context, check_id):
+    session = get_session()
+    with session.begin():
+        result = model_query(context, models.PeriodicChecks, session=session).\
+                 filter_by(check_id=check_id).\
+                 soft_delete(synchronize_session=False)
+    if not result:
+        raise exception.PeriodicCheckFound(check_id=check_id)

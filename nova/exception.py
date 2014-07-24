@@ -1563,6 +1563,10 @@ class PciDeviceUnsupportedHypervisor(NovaException):
     msg_fmt = _("%(type)s hypervisor does not support PCI devices")
 
 
+class PeriodicCheckExists(NovaException):
+    msg_fmt = _("Periodic Check with ID %(id)s already exists")
+
+
 class KeyManagerError(NovaException):
     msg_fmt = _("Key manager error: %(reason)s")
 
@@ -1618,3 +1622,6 @@ class ImageVCPUTopologyRangeExceeded(Invalid):
 class ImageVCPULimitsRangeImpossible(Invalid):
     msg_fmt = _("Requested vCPU limits %(sockets)d:%(cores)d:%(threads)d "
                 "are impossible to satisfy for vcpus count %(vcpus)d")
+
+class PeriodicCheckFound(NotFound):
+    msg_fmt = _("Periodic check %(check_id)s could not be found.")
