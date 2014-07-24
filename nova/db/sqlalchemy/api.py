@@ -6120,15 +6120,15 @@ def store_periodic_check(context, check):
 
 ###################
 
-def periodic_check_get(context, check_id):
-    return _periodic_check_get(context, check_id)
+def periodic_check_get(context, check_name):
+    return _periodic_check_get(context, check_name)
 
-def _periodic_check_get(context, check_id, session=None):
+def _periodic_check_get(context, check_name, session=None):
     result = model_query(context, models.PeriodicChecks, session=session).\
-            filter_by(check_id=check_id).\
+            filter_by(check_name=check_name).\
             first()
     if not result:
-        raise exception.PeriodicCheckFound(check_id=check_id)
+        raise exception.PeriodicCheckFound(check_name=check_name)
     return result
 
 @require_admin_context
@@ -6148,21 +6148,21 @@ def periodic_check_create(context, values):
     return periodic_check
 
 @require_admin_context
-def periodic_check_update(context, check_id, values):
+def periodic_check_update(context, check_name, values):
     session = get_session()
     with session.begin():
-        periodic_check = _periodic_check_get(context, check_id,
+        periodic_check = _periodic_check_get(context, check_name,
                                                 session=session)
         periodic_check.update(values)
 
     return periodic_check
 
 @require_admin_context
-def periodic_check_delete(context, check_id):
+def periodic_check_delete(context, check_name):
     session = get_session()
     with session.begin():
         result = model_query(context, models.PeriodicChecks, session=session).\
-                 filter_by(check_id=check_id).\
+                 filter_by(check_name=check_name).\
                  soft_delete(synchronize_session=False)
     if not result:
-        raise exception.PeriodicCheckFound(check_id=check_id)
+        raise exception.PeriodicCheckFound(check_name=check_name)

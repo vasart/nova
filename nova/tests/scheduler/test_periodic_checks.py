@@ -92,9 +92,46 @@ class PeriodicTestCase(test.TestCase):
         self.assertFalse(None,self.periodic.get_trusted_pool())
 
     def test_add_check(self):
-        self.req.environ["nova.context"].is_admin = True
-        dc = {'check_id':'test1', 'time_out' : '10', 'port' : '5534', 'status' : 'turn_off', 'server':'localhost'}
-        self.periodic.add_check(self.req.environ["nova.context"], dc)
-        test_check = self.periodic.get_check_by_id(self.req.environ["nova.context"], dc)
-        self.assertEqual(test_check['check_id'], 'test')
-        #db.periodic_check_delete(self.req.environ["nova.context"], dc['check_id'])
+        ctxt = context_maker.get_admin_context()
+        dc = {'check_name':'test_check', 'spacing' : '10', 'port' : '5534', 'status' : 'turn_off', 'server':'localhost', 'description': 'test_check', 'time_out' : 10}
+        self.periodic.add_check(ctxt, dc)
+        test_check = db.periodic_check_get(ctxt, 'test_check')
+        self.assertEqual(test_check['check_name'], 'test_check')
+        db.periodic_check_delete(ctxt, dc['check_name'])
+
+    def test_remove_check(self):
+        ctxt = context_maker.get_admin_context()
+        dc = {'check_name':'test_check', 'spacing' : '10', 'port' : '5534', 'status' : 'turn_off', 'server':'localhost', 'description': 'test_check', 'time_out' : 10}
+        db.periodic_check_create(ctxt, dc)
+        self.periodic.remove_check(ctxt, dc)
+        test_check = db.periodic_check_get_all(ctxt)
+        self.assertEqual(len(test_check), 0)
+
+    def test_get_all_check(self):
+        ctxt = context_maker.get_admin_context()
+        dc = {'check_name':'test_check_1', 'spacing' : '10', 'port' : '5534', 'status' : 'turn_off', 'server':'localhost', 'description': 'test check 1', 'time_out' : 10}
+        db.periodic_check_create(ctxt, dc)
+        dc = {'check_name':'test_check_2', 'spacing' : '10', 'port' : '5534', 'status' : 'turn_off', 'server':'localhost', 'description': 'test check 2', 'time_out' : 10}
+        db.periodic_check_create(ctxt, dc)
+        test_check = self.periodic.get_all_checks(ctxt)
+        self.assertEqual(len(test_check), 2)
+        db.periodic_check_delete(ctxt, 'test_check_1')
+        db.periodic_check_delete(ctxt, 'test_check_2')
+
+    def test_update_check(self):
+        ctxt = context_maker.get_admin_context()
+        dc = {'check_name':'test_check', 'spacing' : '10', 'port' : '5534', 'status' : 'turn_off', 'server':'localhost', 'description': 'test_check', 'time_out' : 10}
+        db.periodic_check_create(ctxt, dc)
+        dc = {'check_name':'test_check', 'spacing' : '20', 'port' : '5534', 'status' : 'turn_off', 'server':'localhost', 'description': 'test check 2', 'time_out' : 10}
+        self.periodic.update_check(ctxt, dc)
+        test_check = db.periodic_check_get(ctxt, 'test_check')
+        self.assertEqual(test_check['spacing'], 20)
+        db.periodic_check_delete(ctxt, dc['check_name'])
+
+    def test_get_check_by_name(self):
+        ctxt = context_maker.get_admin_context()
+        dc = {'check_name':'test_check', 'spacing' : '10', 'port' : '5534', 'status' : 'turn_off', 'server':'localhost', 'description': 'test_check', 'time_out' : 10}
+        db.periodic_check_create(ctxt, dc)
+        test_check = self.periodic.get_check_by_name(ctxt, dc)
+        self.assertEqual(test_check['check_name'], 'test_check')
+        db.periodic_check_delete(ctxt, dc['check_name'])        

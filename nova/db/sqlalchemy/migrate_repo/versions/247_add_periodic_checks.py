@@ -31,11 +31,14 @@ def upgrade(migrate_engine):
         Column('updated_at', DateTime, onupdate=timeutils.utcnow),
         Column('deleted_at', DateTime),
         Column('deleted', Integer, default=0), 
-        Column('check_id', String(length=50), primary_key=True, nullable=False),
-        Column('server', String(length=50)),
+        Column('id', Integer, primary_key=True, nullable=False),
+        Column('check_name', String(length=50), nullable=False),
+        Column('server', String(length=50), nullable=True),
         Column('status', String(50), nullable=False, default='turn_off'),
-        Column('time_out', Integer, nullable=False),
-        Column('port', Integer),
+        Column('spacing', Integer, nullable=False),
+        Column('port', Integer, nullable=True),
+        Column('time_out', Integer, nullable=True),
+        Column('description', String(255), nullable=True),
     )
     pcr = Table(
         'periodic_check_results', meta, 
