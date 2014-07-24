@@ -31,7 +31,7 @@ class PeriodicTestCase(test.NoDBTestCase):
         super(PeriodicTestCase, self).setUp()
         self.flags(scheduler_driver=self.driver_cls_name)
         self.periodic = self.periodic_cls()
-        self.ctxt = context.get_admin_context()
+        self.context = context.get_admin_context()
 
 
     def test__init__(self):
