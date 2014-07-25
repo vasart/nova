@@ -2,10 +2,11 @@ from oslo.config import cfg
 
 from nova import context
 from nova import db
-from nova.openstack.common import log as logging
+from nova import manager
 from nova.openstack.common import periodic_task
 from nova.openstack.common import timeutils
 from nova.scheduler import adapters
+
 
 check_opts = [
     cfg.BoolOpt('periodic_tasks_running',
@@ -57,8 +58,6 @@ class PeriodicChecks(object):
         self._get_all_adapters()
         # test code
         self.check_times = 1
-        # start checks
-        self.run_checks({})
         computes = db.compute_node_get_all(admin)
         for compute in computes:
             service = compute['service']
@@ -81,24 +80,27 @@ class PeriodicChecks(object):
         return class_map
     
     @periodic_task.periodic_task(spacing=5,run_immediately=True)
-    def run_checks(self, kwargs):
+    def run_checks(self, context):
         ''' form a temporary compute pool to prevent unavailability of pool 
         during running checks'''
         '''store data'''
-        check1={'check_id':"ameycheck1",'host':"host1234",'result':"p",'status':'on'}
-        db.store_periodic_check(context, check1)
+        check1={'check_id':self.check_times, 
+            'host':"sampleHost",'result':"p",'status':'on'}
+        db.store_periodic_check(context, check1)      
         if(PeriodicChecks.periodic_tasks_running):
 
             for host in self.compute_nodes:
-                for adapter in adapters:
-                    result, turn_on = adapter.is_trusted(host, 'trusted')
+                for adapter in self._get_all_adapters():
+                    '''a = adapter()
+                    result, turn_on = a.is_trusted(host, 'trusted')
                     if turn_on:
                         current_host = self.compute_nodes[host]
-                        current_host['trust_lvl'] = result
+                        current_host['trust_lvl'] = result'''
+                    #else:
+                    '''not store data'''
 
-                    else:
-                        '''not store data'''
             self.check_times += 1
+
         
     
     ''' Add checks through horizon
