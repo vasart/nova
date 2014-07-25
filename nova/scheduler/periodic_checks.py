@@ -7,6 +7,18 @@ from nova.openstack.common import periodic_task
 from nova.openstack.common import timeutils
 from nova.scheduler import adapters
 
+check_opts = [
+    cfg.BoolOpt('periodic_tasks_running',
+                default = True,
+                help = 'Periodic check status'),
+]
+
+CONF = cfg.CONF
+check_group = cfg.OptGroup(name='periodic_checks', title='Periodic check parameters')
+CONF.register_group(check_group)
+CONF.register_opts(check_opts, group=check_group)
+
+
 class PeriodicChecks(object):
     '''This module contains 4 main functions:
         1. Accept user input through Nova API to create, update and 
@@ -37,8 +49,6 @@ class PeriodicChecks(object):
         admin = context.get_admin_context()
         self.compute_nodes = {}
 
-        # set flag to show that periodic checks are now running
-        PeriodicChecks.periodic_tasks_running = True
         # get all adapters
         self.adapter_handler = adapters.AdapterHandler()
         # all compute nodes
@@ -74,7 +84,7 @@ class PeriodicChecks(object):
     def run_checks(self, kwargs):
         ''' form a temporary compute pool to prevent unavailability of pool 
         during running checks'''
-        if(PeriodicChecks.periodic_tasks_running):
+        if(CONF.periodic_checks.periodic_tasks_running):
             '''store data'''
             check1={'check_id':"ameycheck1",'host':"host1234",'result':"result of checks",'status':'on'}
             db.store_periodic_check(context, check1)
@@ -128,7 +138,7 @@ class PeriodicChecks(object):
         ''' Used to check of periodic tasks are running by 
         scheduler.filters.trusted_filter
         '''
-        if PeriodicChecks.periodic_tasks_running:
+        if CONF.periodic_checks.periodic_tasks_running:
             return True;
         return False;
 
@@ -136,12 +146,12 @@ class PeriodicChecks(object):
         return self.running_checks;
 
     def get_trusted_pool(self):
-        if(PeriodicChecks.periodic_tasks_running):
+        if(CONF.periodic_checks.periodic_tasks_running):
             return self.compute_nodes
         return None
 
     def turn_off_periodic_check(self):
-        PeriodicChecks.periodic_tasks_running = False
+        CONF.periodic_checks.periodic_tasks_running = False
 
     def turn_on_periodic_check(self):
-        PeriodicChecks.periodic_tasks_running = True
+        CONF.periodic_checks.periodic_tasks_running = True

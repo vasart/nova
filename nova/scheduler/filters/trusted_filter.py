@@ -82,7 +82,6 @@ trust_group = cfg.OptGroup(name='trusted_computing', title='Trust parameters')
 CONF.register_group(trust_group)
 CONF.register_opts(trusted_opts, group=trust_group)
 
-
 class HTTPSClientAuthConnection(httplib.HTTPSConnection):
     """Class to make a HTTPS connection, with support for full client-based
     SSL Authentication
@@ -281,12 +280,13 @@ class TrustedFilter(filters.BaseHostFilter):
 
     def __init__(self):
         self.compute_attestation = ComputeAttestation()
+        #self.periodic_checks = periodic_checks.PeriodicChecks()
 
     def host_passes(self, host_state, filter_properties):
         ''' Check if periodic tasks are running.'''
         # get the nodes from Periodic Tasks
         hosts = periodic_checks.PeriodicChecks.get_trusted_pool
-        if hosts is not None :
+        if CONF.periodic_checks.periodic_tasks_running:
             # periodic checks are running
             host = hosts[host_state.host]
             return host['trust_lvl']

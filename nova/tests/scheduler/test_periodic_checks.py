@@ -22,25 +22,7 @@ from nova import db
 from nova.openstack.common import periodic_task
 from nova.scheduler import periodic_checks as pc
 
-# test_opts = [
-#     cfg.StrOpt('check_server',
-#                help='Attestation server HTTP'),
-#     cfg.StrOpt('port',
-#                default='8443',
-#                help='Attestation server port'),
-#     cfg.IntOpt('spacing',
-#                default=60,
-#                help='Attestation status cache valid period length'),
-#     cfg.StrOpt('status',
-#                default='trust_off',
-#                help='Attestation status for turn off or on'),
-# ]
-
 CONF = cfg.CONF
-test_group = cfg.OptGroup(name='test',
-                           title='test')
-CONF.register_group(test_group)
-# CONF.register_opts(test_opts, group=test_group)
 
 class FakeRequest(object):
     environ = {"nova.context": context_maker.get_admin_context()}
@@ -81,6 +63,11 @@ class PeriodicTestCase(test.TestCase):
         '''
         self.periodic.turn_off_periodic_check()
         self.assertEqual(None,self.periodic.get_trusted_pool())
+
+    def test_check_running(self):
+        self.assertTrue(CONF.periodic_checks.periodic_tasks_running)
+        CONF.periodic_checks.periodic_tasks_running = False
+        self.assertFalse(CONF.periodic_checks.periodic_tasks_running)
 
     def test_periodic_checks_on(self):
         ''' Test that when component is turned on, it does not return None as the
@@ -134,4 +121,5 @@ class PeriodicTestCase(test.TestCase):
         db.periodic_check_create(ctxt, dc)
         test_check = self.periodic.get_check_by_name(ctxt, dc)
         self.assertEqual(test_check['check_name'], 'test_check')
-        db.periodic_check_delete(ctxt, dc['check_name'])        
+        db.periodic_check_delete(ctxt, dc['check_name'])  
+
