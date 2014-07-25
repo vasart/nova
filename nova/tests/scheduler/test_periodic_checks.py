@@ -40,12 +40,14 @@ class PeriodicTestCase(test.TestCase):
         self.flags(scheduler_driver=self.driver_cls_name)
         self.periodic = self.periodic_cls()
         self.req = FakeRequest()
+
     def test__init__(self):
-        self.assertEqual(2,self.periodic.check_times)
+        self.assertEqual(1,self.periodic.check_times)
 
     def test_periodic_task(self):
-        res = self.periodic.run_checks({})
-    	self.assertEqual(3,res)
+        ctxt = context_maker.get_admin_context()
+        res = self.periodic.run_checks(ctxt)
+    	self.assertEqual(2,res)
         
     def test_periodic_utils(self):
         @periodic_task.periodic_task(spacing=5,run_immediately=True)

@@ -58,6 +58,7 @@ class PeriodicChecks(object):
         self._get_all_adapters()
         # test code
         self.check_times = 1
+
         computes = db.compute_node_get_all(admin)
         for compute in computes:
             service = compute['service']
@@ -79,28 +80,24 @@ class PeriodicChecks(object):
             class_map[cls.__name__] = cls
         return class_map
     
-    @periodic_task.periodic_task(spacing=5,run_immediately=True)
     def run_checks(self, context):
         ''' form a temporary compute pool to prevent unavailability of pool 
         during running checks'''
+        # if(CONF.periodic_checks.periodic_tasks_running):
         '''store data'''
-        check1={'check_id':self.check_times, 
-            'host':"sampleHost",'result':"p",'status':'on'}
-        db.store_periodic_check(context, check1)      
-        if(PeriodicChecks.periodic_tasks_running):
+        check1={'check_id':"ameycheck1",'host':"host1234",'result':"result of checks",'status':'on'}
+        db.store_periodic_check(context, check1)
+            # for host in self.compute_nodes:
+            #     for adapter in adapters:
+            #         result, turn_on = adapter.is_trusted(host, 'trusted')
+            #         if turn_on:
+            #             current_host = self.compute_nodes[host]
+            #             current_host['trust_lvl'] = result
 
-            for host in self.compute_nodes:
-                for adapter in self._get_all_adapters():
-                    '''a = adapter()
-                    result, turn_on = a.is_trusted(host, 'trusted')
-                    if turn_on:
-                        current_host = self.compute_nodes[host]
-                        current_host['trust_lvl'] = result'''
-                    #else:
-                    '''not store data'''
-
-            self.check_times += 1
-
+            #         else:
+            #             '''not store data'''
+        self.check_times += 1
+        return self.check_times
         
     
     ''' Add checks through horizon

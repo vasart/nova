@@ -57,6 +57,7 @@ CONF.register_opts(scheduler_driver_opts)
 QUOTAS = quota.QUOTAS
 
 
+
 class SchedulerManager(manager.Manager):
     """Chooses a host to run instances on."""
 
@@ -67,7 +68,8 @@ class SchedulerManager(manager.Manager):
             scheduler_driver = CONF.scheduler_driver
         self.driver = importutils.import_object(scheduler_driver)
         self.compute_rpcapi = compute_rpcapi.ComputeAPI()
-        self.checks = periodic_checks.PeriodicChecks()
+        self.periodic_checks = periodic_checks.PeriodicChecks()
+
         super(SchedulerManager, self).__init__(service_name='scheduler',
                                                *args, **kwargs)
 
@@ -165,8 +167,7 @@ class SchedulerManager(manager.Manager):
     @periodic_task.periodic_task(spacing=5,
                                  run_immediately=True)
     def _run_periodic_checks(self, context):
-        self.checks.run_checks(context)
-
+        self.periodic_checks.run_checks(context)
 
     @messaging.expected_exceptions(exception.NoValidHost)
     def select_destinations(self, context, request_spec, filter_properties):
