@@ -32,28 +32,21 @@ class PeriodicChecks(object):
     the trusted_filter will call OA directly.
     '''
 
-    ''' list of running checks '''
-    running_checks = {}
-
     ''' periodic tasks not running by default '''
     periodic_tasks_running = True
 
     def __init__(self):
-
-        admin = context.get_admin_context()
         self.compute_nodes = {}
-
         ''' get all adapters '''
         self.adapter_handler = adapters.AdapterHandler()
-
         ''' all compute nodes '''
         self.compute_nodes = {}
-
         '''all attached adapters '''
         self.class_map = {}
+        self.initialize_trusted_pool()
 
-        ''' all adapters in the adapters folder '''
-        self._get_all_adapters()
+    def initialize_trusted_pool(self):
+        admin = context.get_admin_context()
         computes = db.compute_node_get_all(admin)
         for compute in computes:
             service = compute['service']
@@ -75,31 +68,6 @@ class PeriodicChecks(object):
             class_map[cls.__name__] = cls
         return class_map
 
-    def run_checks(self, context):
-        ''' Store results of each check periodically
-        '''
-        if(PeriodicChecks.periodic_tasks_running):
-            adapters = self._get_all_adapters()
-            for host in self.compute_nodes:
-                for index, adapter in enumerate(adapters):
-                    a = adapters[adapter]()
-                    result, turn_on = a.is_trusted(host, 'trusted')
-                    if turn_on:
-                        current_host = self.compute_nodes[host]
-                        current_host['trust_lvl'] = result
-                        '''store data'''
-                        check1 = {'check_id': adapter,
-                                  'host': host,
-                                  'result': result,
-                                  'status': 'on'}
-                    else:
-                        '''not store data'''
-                        check1 = {'check_id': adapter,
-                                  'host': host,
-                                  'result': result,
-                                  'status': 'off'}
-                    db.periodic_check_results_store(context, check1)
-
     ''' Add checks through horizon
     @param id: identifier for the check
     @param spacing: time between successive checks in seconds
@@ -110,15 +78,18 @@ class PeriodicChecks(object):
         set the periodic tasks running flag to True
         TODO write new check into CONF and then call adapter
         '''
-        PeriodicChecks.periodic_tasks_running = True
+        CONF.periodic_checks.periodic_tasks_running = True
         db.periodic_check_create(context, values)
 
     def remove_check(self, context, values):
-        ''' stop and delete adapter for this check and update mysql
-        database
+        ''' stop and delete adapter for this check and update mysql database
         '''
         name = values['name']
         db.periodic_check_delete(context, name)
+        running_checks = db.periodic_check_get_all(context)
+
+        if running_checks.len == 0:
+            CONF.periodic_checks.periodic_tasks_running = False
 
     def update_check(self, context, values):
         name = values['name']
@@ -141,7 +112,7 @@ class PeriodicChecks(object):
 
     def get_running_checks(self):
         if CONF.periodic_checks.periodic_tasks_running:
-            return self.running_checks
+            return db.periodic_check_get_all
         return None
 
     def get_trusted_pool(self):
@@ -163,3 +134,42 @@ class PeriodicChecks(object):
     def periodic_checks_results_delete_by_id(self, context, id):
         result = db.periodic_check_results_delete_by_id(context, id)
         return result
+
+    '''Runs a check manually on an input list of nodes so that previously
+    removed node can be returned to trusted pool
+    '''
+    def run_checks_specific_nodes(self, context, input_nodes):
+        if(PeriodicChecks.periodic_tasks_running):
+            adapters = self._get_all_adapters()
+            for host in input_nodes:
+                for index, adapter in enumerate(adapters):
+                    adapter_instance = adapters[adapter]()
+                    self.run_check_and_store_result(context, host, adapter, adapter_instance)
+
+    def run_checks(self, context):
+        ''' Store results of each check periodically
+        '''
+        if(PeriodicChecks.periodic_tasks_running):
+            adapters = self._get_all_adapters()
+            for host in self.compute_nodes:
+                for index, adapter in enumerate(adapters):
+                    adapter_instance = adapters[adapter]()
+                    self.run_check_and_store_result(context, host, adapter, adapter_instance)
+
+    def run_check_and_store_result(self, context, host, adapter_name, adapter_instance):
+        result, turn_on = adapter_instance.is_trusted(host, 'trusted')
+        if turn_on:
+            current_host = self.compute_nodes[host]
+            current_host['trust_lvl'] = result
+            '''store data'''
+            check = {'check_id': adapter_name,
+                    'host': host,
+                    'result': result,
+                    'status': 'on'}
+        else:
+            '''not store data'''
+            check = {'check_id': adapter_name,
+                      'host': host,
+                      'result': result,
+                      'status': 'off'}
+        db.periodic_check_results_store(context, check)
