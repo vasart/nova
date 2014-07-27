@@ -36,6 +36,17 @@ SUPPORTED_FILTERS = {
 
 def make_periodic_check(elem):
     elem.set('id')
+    elem.set('time')
+    elem.set('name')
+    elem.set('node')
+    elem.set('result')
+    elem.set('status')
+
+    elem.append(common.MetadataTemplate())
+
+
+def make_periodic_check_result(elem):
+    elem.set('id')
     elem.set('name')
     elem.set('desc')
     elem.set('timeout')
@@ -45,16 +56,7 @@ def make_periodic_check(elem):
 
 
 periodic_check_nsmap = {None: xmlutil.XMLNS_V11, 'atom': xmlutil.XMLNS_ATOM}
-
-
-class PeriodicCheck():
-
-    def __init__(self, check_id, name, desc, timeout, spacing):
-        self.id = check_id
-        self.name = name
-        self.desc = desc
-        self.timeout = timeout
-        self.spacing = spacing
+periodic_check_result_nsmap = {None: xmlutil.XMLNS_V11, 'atom': xmlutil.XMLNS_ATOM}
 
 
 class PeriodicCheckTemplate(xmlutil.TemplateBuilder):
@@ -72,6 +74,15 @@ class PeriodicChecksTemplate(xmlutil.TemplateBuilder):
             selector='periodic_check')
         make_periodic_check(elem)
         return xmlutil.MasterTemplate(root, 1, nsmap=periodic_check_nsmap)
+
+
+class PeriodicChecksTemplate(xmlutil.TemplateBuilder):
+    def construct(self):
+        root = xmlutil.TemplateElement('periodic_check_results')
+        elem = xmlutil.SubTemplateElement(root, 'periodic_check_result',
+            selector='periodic_check_result')
+        make_periodic_check_result(elem)
+        return xmlutil.MasterTemplate(root, 1, nsmap=periodic_check_result_nsmap)
 
 
 class Controller(wsgi.Controller):
@@ -111,16 +122,16 @@ class Controller(wsgi.Controller):
         return filters
 
     @wsgi.serializers(xml=PeriodicCheckTemplate)
-    def show(self, req, id):
+    def show(self, req, name):
         """Return detailed information about a specific periodic check.
 
         :param req: `wsgi.Request` object
-        :param id: Periodic check identifier
+        :param name: Periodic check unique name
         """
         context = req.environ['nova.context']
 
         try:
-            periodic_check = periodic_checks.get_check_by_name(context, id)
+            periodic_check = periodic_checks.get_check_by_name(context, name)
         except (exception.NotFound):
             explanation = _("Periodic check not found.")
             raise webob.exc.HTTPNotFound(explanation=explanation)
@@ -128,15 +139,15 @@ class Controller(wsgi.Controller):
         req.cache_db_items('periodic_checks', [periodic_check], 'id')
         return self._view_builder.show(req, periodic_check)
 
-    def delete(self, req, id):
+    def delete(self, req, name):
         """Delete a periodic check, if allowed.
 
         :param req: `wsgi.Request` object
-        :param id: Periodic check identifier (integer)
+        :param name: Periodic check unique name
         """
         context = req.environ['nova.context']
         try:
-            periodic_checks.delete(context, id);
+            periodic_checks.remove_check(context, name);
         except exception.NotFound:
             explanation = _("Periodic check not found.")
             raise webob.exc.HTTPNotFound(explanation=explanation)
@@ -200,15 +211,15 @@ class Controller(wsgi.Controller):
         try:
             periodic_check_dict = body['periodic_check']
 
-            id = periodic_check_dict['id']
-            #name = periodic_check_dict['name']
+            #id = periodic_check_dict['id']
+            name = periodic_check_dict['name']
             #desc = periodic_check_dict['desc']
             #spacing = periodic_check_dict['spacing']
             #timeout = periodic_check_dict['timeout']
 
             #periodic_checks.add_check(context, {id, name, desc, spacing, timeout})
             periodic_checks.add_check(context, periodic_check_dict)
-            periodic_check = periodic_checks.get_check_by_name(context, id)
+            periodic_check = periodic_checks.get_check_by_name(context, name)
         except exception.Invalid as e:
             raise webob.exc.HTTPBadRequest(explanation=e.format_message())
 
@@ -225,13 +236,63 @@ class Controller(wsgi.Controller):
             periodic_check_dict = body['periodic_check']
 
             try:
-                id = periodic_check_dict['id']
+                name = periodic_check_dict['name']
                 periodic_checks.update_check(context, periodic_check_dict)
-                periodic_check = periodic_checks.get_check_by_name(context, id)
+                periodic_check = periodic_checks.get_check_by_name(context, name)
         except exception.Invalid as e:
             raise webob.exc.HTTPBadRequest(explanation=e.format_message())
 
         return self._view_builder.show(req, periodic_check)
+
+
+class ResultsController(wsgi.Controller):
+
+    """Base controller for retrieving/displaying results."""
+
+    _view_builder_class = views_periodic_checks.ViewBuilder
+
+    def __init__(self, **kwargs):
+        """Initialize new `ResultsController`."""
+        super(Controller, self).__init__(**kwargs)
+
+    def delete(self, req, id):
+        """Delete a periodic check result, if allowed.
+
+        :param req: `wsgi.Request` object
+        :param id: Periodic check result identifier (integer)
+        """
+        context = req.environ['nova.context']
+        try:
+            periodic_checks.remove_result(context, id);
+        except exception.NotFound:
+            explanation = _("Periodic check result not found.")
+            raise webob.exc.HTTPNotFound(explanation=explanation)
+        except exception.Forbidden:
+            # This exception is raised on delete of OpenAttestation check
+            explanation = \
+                _("You are not allowed to delete the periodic check result.")
+            raise webob.exc.HTTPForbidden(explanation=explanation)
+        return webob.exc.HTTPNoContent()
+
+    @wsgi.serializers(xml=ResultsTemplate)
+    def index(self, req):
+        """Return an index listing of results available to the request.
+
+        :param req: `wsgi.Request` object
+
+        """
+        context = req.environ['nova.context']
+        #filters = self._get_filters(req)
+        params = req.GET.copy()
+        page_params = common.get_pagination_params(req)
+        for key, val in page_params.iteritems():
+            params[key] = val
+
+        try:
+            results = periodic_checks.periodic_checks_results_get(context)
+        except exception.Invalid as e:
+            raise webob.exc.HTTPBadRequest(explanation=e.format_message())
+        return self._view_builder.index(req, results)
 
 
 def create_resource():
