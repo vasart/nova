@@ -15,6 +15,8 @@ import webob.exc
 from nova.api.openstack import common
 from nova.api.openstack.compute.views import periodic_checks \
     as views_periodic_checks
+from nova.api.openstack.compute.views import periodic_check_results \
+    as views_periodic_check_results
 from nova.api.openstack import wsgi
 from nova.api.openstack import xmlutil
 from nova import exception
@@ -36,21 +38,21 @@ SUPPORTED_FILTERS = {
 
 def make_periodic_check(elem):
     elem.set('id')
-    elem.set('time')
     elem.set('name')
-    elem.set('node')
-    elem.set('result')
-    elem.set('status')
+    elem.set('desc')
+    elem.set('timeout')
+    elem.set('spacing')
 
     elem.append(common.MetadataTemplate())
 
 
 def make_periodic_check_result(elem):
     elem.set('id')
+    elem.set('time')
     elem.set('name')
-    elem.set('desc')
-    elem.set('timeout')
-    elem.set('spacing')
+    elem.set('node')
+    elem.set('result')
+    elem.set('status')
 
     elem.append(common.MetadataTemplate())
 
@@ -249,7 +251,7 @@ class ResultsController(wsgi.Controller):
 
     """Base controller for retrieving/displaying results."""
 
-    _view_builder_class = views_periodic_checks.ViewBuilder
+    _view_builder_class = views_periodic_check_results.ViewBuilder
 
     def __init__(self, **kwargs):
         """Initialize new `ResultsController`."""

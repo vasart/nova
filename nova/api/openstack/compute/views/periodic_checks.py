@@ -38,7 +38,6 @@ class ViewBuilder(common.ViewBuilder):
             "desc": periodic_check.desc,
             "timeout": periodic_check.timeout,
             "spacing": periodic_check.spacing,
-#             "created": self._format_date(periodic_check.get("created")),
         }
 
         return dict(periodic_check=periodic_check_dict)
