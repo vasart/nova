@@ -20,6 +20,7 @@ class ViewBuilder(common.ViewBuilder):
 
     def basic(self, request, periodic_check_result):
         """Return a dictionary with basic result attributes."""
+        return {
             "periodic_check_result": {
                 "id": periodic_check_result.id,
                 "time": periodic_check_result.time,
