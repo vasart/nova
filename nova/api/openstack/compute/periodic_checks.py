@@ -78,7 +78,7 @@ class PeriodicChecksTemplate(xmlutil.TemplateBuilder):
         return xmlutil.MasterTemplate(root, 1, nsmap=periodic_check_nsmap)
 
 
-class PeriodicChecksTemplate(xmlutil.TemplateBuilder):
+class ResultsTemplate(xmlutil.TemplateBuilder):
     def construct(self):
         root = xmlutil.TemplateElement('periodic_check_results')
         elem = xmlutil.SubTemplateElement(root, 'periodic_check_result',
