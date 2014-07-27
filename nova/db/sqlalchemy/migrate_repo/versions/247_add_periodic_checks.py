@@ -32,7 +32,7 @@ def upgrade(migrate_engine):
         Column('deleted_at', DateTime),
         Column('deleted', Integer, default=0), 
         Column('id', Integer, primary_key=True, nullable=False),
-        Column('check_name', String(length=50), nullable=False),
+        Column('name', String(length=50), nullable=False),
         Column('server', String(length=50), nullable=True),
         Column('status', String(50), nullable=False, default='turn_off'),
         Column('spacing', Integer, nullable=False),
