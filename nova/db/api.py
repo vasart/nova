@@ -1968,7 +1968,7 @@ def archive_deleted_rows_for_table(context, tablename, max_rows=None):
 ###################
 
 
-def periodic_check_results_get(context, num_results=100):
+def periodic_check_results_get(context, num_results):
     """ Get the specified number of periodic checks
     Default number of results returned are 30.
 
@@ -1982,7 +1982,6 @@ def periodic_check_results_store(context, check):
     """
     return IMPL.periodic_check_results_store(context, check)
 
-    ###################
 
 def periodic_check_get(context, check_name):
     """Get a periodic check by its id.
