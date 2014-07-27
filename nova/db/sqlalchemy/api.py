@@ -6140,10 +6140,10 @@ def periodic_checks_results_delete_by_id(context, id):
 
 ###################
 
-    '''
-    def periodic_check_get(context, check_name):
-    return _periodic_check_get(context, check_name)
-    '''
+
+@require_admin_context
+def periodic_check_get(context, name):
+    return _periodic_check_get(context, name)
 
 
 def _periodic_check_get(context, name, session=None):
