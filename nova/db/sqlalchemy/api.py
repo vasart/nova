@@ -6140,14 +6140,15 @@ def periodic_checks_results_delete_by_id(context, id):
 
 ###################
 
-
-def periodic_check_get(context, check_name):
+    '''
+    def periodic_check_get(context, check_name):
     return _periodic_check_get(context, check_name)
+    '''
 
 
-def _periodic_check_get(context, check_name, session=None):
+def _periodic_check_get(context, name, session=None):
     result = model_query(context, models.PeriodicChecks, session=session).\
-            filter_by(check_name=check_name).\
+            filter_by(check_name=name).\
             first()
     if not result:
         raise exception.PeriodicCheckFound(check_name=check_name)

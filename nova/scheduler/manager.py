@@ -57,7 +57,6 @@ CONF.register_opts(scheduler_driver_opts)
 QUOTAS = quota.QUOTAS
 
 
-
 class SchedulerManager(manager.Manager):
     """Chooses a host to run instances on."""
 

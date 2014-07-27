@@ -1992,7 +1992,7 @@ def periodic_checks_results_delete_by_id(context, id):
     return IMPL.periodic_checks_results_delete_by_id(context, id)
 
 
-def periodic_check_get(context, check_name):
+def periodic_check_get(context, name):
     """Get a periodic check by its id.
 
     :param context: The security context
@@ -2004,7 +2004,7 @@ def periodic_check_get(context, check_name):
     Raises PeriodicCheckNotFound if periodic check with the given ID
     doesn't exist.
     """
-    return IMPL.periodic_check_get(context, check_name)
+    return IMPL.periodic_check_get(context, name)
 
 
 def periodic_check_get_all(context, disabled=None):
