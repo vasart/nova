@@ -237,10 +237,9 @@ class Controller(wsgi.Controller):
         try:
             periodic_check_dict = body['periodic_check']
 
-            try:
-                name = periodic_check_dict['name']
-                periodic_checks.update_check(context, periodic_check_dict)
-                periodic_check = periodic_checks.get_check_by_name(context, name)
+            name = periodic_check_dict['name']
+            periodic_checks.update_check(context, periodic_check_dict)
+            periodic_check = periodic_checks.get_check_by_name(context, name)
         except exception.Invalid as e:
             raise webob.exc.HTTPBadRequest(explanation=e.format_message())
 
@@ -294,6 +293,7 @@ class ResultsController(wsgi.Controller):
             results = periodic_checks.periodic_checks_results_get(context)
         except exception.Invalid as e:
             raise webob.exc.HTTPBadRequest(explanation=e.format_message())
+
         return self._view_builder.index(req, results)
 
 
