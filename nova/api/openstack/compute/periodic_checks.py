@@ -34,11 +34,9 @@ SUPPORTED_FILTERS = {
 }
 
 
-def make_periodic_check(elem, detailed=False):
+def make_periodic_check(elem):
     elem.set('id')
     elem.set('name')
-
-#     if detailed:
     elem.set('desc')
     elem.set('timeout')
     elem.set('spacing')
@@ -63,16 +61,7 @@ class PeriodicCheckTemplate(xmlutil.TemplateBuilder):
     def construct(self):
         root = xmlutil.TemplateElement('periodic_check',
             selector='periodic_check')
-        make_periodic_check(root, detailed=True)
-        return xmlutil.MasterTemplate(root, 1, nsmap=periodic_check_nsmap)
-
-
-class MinimalPeriodicCheckTemplate(xmlutil.TemplateBuilder):
-    def construct(self):
-        root = xmlutil.TemplateElement('periodic_checks')
-        elem = xmlutil.SubTemplateElement(root, 'periodic_check',
-            selector='periodic_check')
-        make_periodic_check(elem)
+        make_periodic_check(root)
         return xmlutil.MasterTemplate(root, 1, nsmap=periodic_check_nsmap)
 
 
@@ -81,7 +70,7 @@ class PeriodicChecksTemplate(xmlutil.TemplateBuilder):
         root = xmlutil.TemplateElement('periodic_checks')
         elem = xmlutil.SubTemplateElement(root, 'periodic_check',
             selector='periodic_check')
-        make_periodic_check(elem, detailed=True)
+        make_periodic_check(elem)
         return xmlutil.MasterTemplate(root, 1, nsmap=periodic_check_nsmap)
 
 
@@ -89,16 +78,6 @@ class Controller(wsgi.Controller):
     """Base controller for retrieving/displaying periodic checks."""
 
     _view_builder_class = views_periodic_checks.ViewBuilder
-
-    mock_data = [
-        PeriodicCheck(0, 'OpenAttestation',
-                      'Static file integrity check using IMA/TPM',
-                      600, 1200),
-        PeriodicCheck(1, 'DynMem',
-                      'Dynamic memory check', 300, 600),
-        PeriodicCheck(2, 'Yet Another Check',
-                      'One more mock check', 720, 1440),
-    ]
 
     def __init__(self, **kwargs):
         """Initialize new `PeriodicCheckController`."""
@@ -138,18 +117,15 @@ class Controller(wsgi.Controller):
         :param req: `wsgi.Request` object
         :param id: Periodic check identifier
         """
-        #context = req.environ['nova.context']
+        context = req.environ['nova.context']
 
         try:
-            for index, check in enumerate(Controller.mock_data):
-                if int(check.id) == int(id):
-                    periodic_check = check
-                    break
+            periodic_check = periodic_checks.get_check_by_name(context, id)
         except (exception.NotFound):
             explanation = _("Periodic check not found.")
             raise webob.exc.HTTPNotFound(explanation=explanation)
 
-#         req.cache_db_items('periodic_checks', [periodic_check], 'id')
+        req.cache_db_items('periodic_checks', [periodic_check], 'id')
         return self._view_builder.show(req, periodic_check)
 
     def delete(self, req, id):
@@ -158,17 +134,9 @@ class Controller(wsgi.Controller):
         :param req: `wsgi.Request` object
         :param id: Periodic check identifier (integer)
         """
-        #context = req.environ['nova.context']
+        context = req.environ['nova.context']
         try:
-            ind = 0
-
-            for index, check in enumerate(Controller.mock_data):
-                if int(check.id) == int(id):
-                    ind = index
-                    break
-                
-            del Controller.mock_data[ind]
-            #self._periodic_check_service.delete(context, id)
+            periodic_checks.delete(context, id);
         except exception.NotFound:
             explanation = _("Periodic check not found.")
             raise webob.exc.HTTPNotFound(explanation=explanation)
@@ -179,14 +147,14 @@ class Controller(wsgi.Controller):
             raise webob.exc.HTTPForbidden(explanation=explanation)
         return webob.exc.HTTPNoContent()
 
-    @wsgi.serializers(xml=MinimalPeriodicCheckTemplate)
+    @wsgi.serializers(xml=PeriodicCheckTemplate)
     def index(self, req):
         """Return an index listing of periodic checks available to the request.
 
         :param req: `wsgi.Request` object
 
         """
-        #context = req.environ['nova.context']
+        context = req.environ['nova.context']
         #filters = self._get_filters(req)
         params = req.GET.copy()
         page_params = common.get_pagination_params(req)
@@ -194,9 +162,7 @@ class Controller(wsgi.Controller):
             params[key] = val
 
         try:
-            periodic_checks = Controller.mock_data
-            #periodic_checks = self._periodic_check_service.detail(context,
-            #    filters=filters, **page_params)
+            periodic_checks = periodic_checks.get_all_checks(context)
         except exception.Invalid as e:
             raise webob.exc.HTTPBadRequest(explanation=e.format_message())
         return self._view_builder.index(req, periodic_checks)
@@ -208,16 +174,14 @@ class Controller(wsgi.Controller):
         :param req: `wsgi.Request` object.
 
         """
-        #context = req.environ['nova.context']
+        context = req.environ['nova.context']
         #filters = self._get_filters(req)
         params = req.GET.copy()
         page_params = common.get_pagination_params(req)
         for key, val in page_params.iteritems():
             params[key] = val
         try:
-            periodic_checks = []
-            #periodic_checks = self._periodic_check_service.detail(context,
-            #    filters=filters, **page_params)
+            periodic_checks = periodic_checks.get_all_checks(context)
         except exception.Invalid as e:
             raise webob.exc.HTTPBadRequest(explanation=e.format_message())
 
@@ -231,20 +195,20 @@ class Controller(wsgi.Controller):
         :param req: `wsgi.Request` object
         :param body: Periodic check properties
         """
+        context = req.environ['nova.context']
+
         try:
             periodic_check_dict = body['periodic_check']
 
             id = periodic_check_dict['id']
-            name = periodic_check_dict['name']
-            desc = periodic_check_dict['desc']
-            spacing = periodic_check_dict['spacing']
-            timeout = periodic_check_dict['timeout']
-            periodic_check = PeriodicCheck(id, name, desc, timeout, spacing)
-            Controller.mock_data.append(periodic_check)
-            
-            context = req.environ['nova.context']
-            self.component = periodic_checks.PeriodicChecks()
-            self.component.run_checks({})
+            #name = periodic_check_dict['name']
+            #desc = periodic_check_dict['desc']
+            #spacing = periodic_check_dict['spacing']
+            #timeout = periodic_check_dict['timeout']
+
+            #periodic_checks.add_check(context, {id, name, desc, spacing, timeout})
+            periodic_checks.add_check(context, periodic_check_dict)
+            periodic_check = periodic_checks.get_check_by_name(context, id)
         except exception.Invalid as e:
             raise webob.exc.HTTPBadRequest(explanation=e.format_message())
 
@@ -259,17 +223,15 @@ class Controller(wsgi.Controller):
         """
         try:
             periodic_check_dict = body['periodic_check']
-            
-            for index, check in enumerate(Controller.mock_data):
-                if int(check.id) == int(id):
-                    check.name = periodic_check_dict['name']
-                    check.desc = periodic_check_dict['desc']
-                    check.spacing = periodic_check_dict['spacing']
-                    check.timeout = periodic_check_dict['timeout']
-                    return self._view_builder.show(req, check)
-            
+
+            try:
+                id = periodic_check_dict['id']
+                periodic_checks.update_check(context, periodic_check_dict)
+                periodic_check = periodic_checks.get_check_by_name(context, id)
         except exception.Invalid as e:
-            raise webob.exc.HTTPBadRequest(explanation=e.format_message())            
+            raise webob.exc.HTTPBadRequest(explanation=e.format_message())
+
+        return self._view_builder.show(req, periodic_check)
 
 
 def create_resource():
