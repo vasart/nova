@@ -95,7 +95,7 @@ class Controller(wsgi.Controller):
     def __init__(self, **kwargs):
         """Initialize new `PeriodicCheckController`."""
         super(Controller, self).__init__(**kwargs)
-        self.periodic_check = periodic_checks.PeriodicCheck()
+        self.periodic_check = periodic_checks.PeriodicChecks()
 
     def _get_filters(self, req):
         """Return a dictionary of query param filters from the request.
