@@ -6103,13 +6103,13 @@ def pci_device_update(context, node_id, address, values):
     return device
 
 """ TODO: add admin context"""
-def get_periodic_check_results(context, num_results):
+def periodic_check_results_get(context, num_results=100):
     results = model_query(context, models.PeriodicChecks).\
                         limit(num_results)
     return results
 
 
-def store_periodic_check(context, check):
+def periodic_check_results_store(context, check):
     check_ref = models.PeriodicCheckResults()
     check_ref.update(check)
     try:
