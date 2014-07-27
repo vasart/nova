@@ -1968,19 +1968,19 @@ def archive_deleted_rows_for_table(context, tablename, max_rows=None):
 ###################
 
 
-def get_periodic_check_results(context, num_results=30):
+def periodic_check_results_get(context, num_results=100):
     """ Get the specified number of periodic checks
     Default number of results returned are 30.
 
     :returns: First 'max_rows' periodic_check results
     """
-    return IMPL.get_periodic_check_results(context, num_results=num_results)
+    return IMPL.periodic_check_results_get(context, num_results=num_results)
 
 
-def store_periodic_check(context, check):
+def periodic_check_results_store(context, check):
     """ Store the check into the database
     """
-    return IMPL.store_periodic_check(context, check)
+    return IMPL.periodic_check_results_store(context, check)
 
     ###################
 

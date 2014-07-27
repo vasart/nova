@@ -22,42 +22,39 @@ CONF.register_opts(check_opts, group=check_group)
 
 class PeriodicChecks(object):
     '''This module contains 4 main functions:
-        1. Accept user input through Nova API to create, update and 
+        1. Accept user input through Nova API to create, update and
                 delete checks
-        2. Store checks and their parameters inside Ceilometer 
-                using (Ceilometer API?)
+        2. Store checks and their parameters inside SQLAlchemy
         3. Communicate with adapters for each running check
         4. Communicate with trusted_filer.py to provide it with a 
-                trusted compute pool periodically or when user asks 
-                for get_trusted_pool
+                trusted compute pool when needed.
     This component also mediates communication with OpenAttestation 
     (OA) for the trusted_filter unless it is not running, in which case 
     the trusted_filter will call OA directly.             
     '''
         
-    # list of running checks
+    ''' list of running checks '''
     running_checks = {} 
-    check_times = 0
     
-    # periodic tasks not running by default
+    ''' periodic tasks not running by default '''
     periodic_tasks_running = True
     
     def __init__(self):
-        ''' TODO:
-            a. Get information about checks from Ceilometer
-            b. Initialize adapters for each check
-        '''
+
         admin = context.get_admin_context()
         self.compute_nodes = {}
 
-        # get all adapters
+        ''' get all adapters '''
         self.adapter_handler = adapters.AdapterHandler()
-        # all compute nodes
+
+        ''' all compute nodes '''
         self.compute_nodes = {}
-        # all adapters in the adapters folder 
+
+        '''all attached adapters '''
+        self.class_map = {}
+
+        ''' all adapters in the adapters folder '''
         self._get_all_adapters()
-        # test code
-        self.check_times = 1
 
         computes = db.compute_node_get_all(admin)
         for compute in computes:
@@ -81,24 +78,25 @@ class PeriodicChecks(object):
         return class_map
     
     def run_checks(self, context):
-        ''' form a temporary compute pool to prevent unavailability of pool 
-        during running checks'''
-        # if(CONF.periodic_checks.periodic_tasks_running):
-        '''store data'''
-        check1={'check_id':"ameycheck1",'host':"host1234",'result':"result of checks",'status':'on'}
-        db.store_periodic_check(context, check1)
-            # for host in self.compute_nodes:
-            #     for adapter in adapters:
-            #         result, turn_on = adapter.is_trusted(host, 'trusted')
-            #         if turn_on:
-            #             current_host = self.compute_nodes[host]
-            #             current_host['trust_lvl'] = result
-
-            #         else:
-            #             '''not store data'''
-        self.check_times += 1
-        return self.check_times
-        
+        ''' Store results of each check periodically 
+        '''
+        if(PeriodicChecks.periodic_tasks_running):
+            adapters = self._get_all_adapters()
+            for host in self.compute_nodes:
+                for index, adapter in enumerate(adapters):
+                    a = adapters[adapter]()
+                    result, turn_on = a.is_trusted(host, 'trusted')
+                    if turn_on:
+                        current_host = self.compute_nodes[host]
+                        current_host['trust_lvl'] = result
+                        '''store data'''
+                        check1={'check_id':adapter, 
+                            'host':host,'result':result,'status':'on'}
+                    else:
+                        '''not store data'''
+                        check1={'check_id':adapter, 
+                            'host':host,'result':result,'status':'off'}
+                    db.store_periodic_check(context, check1)      
     
     ''' Add checks through horizon
     @param id: identifier for the check
@@ -115,7 +113,7 @@ class PeriodicChecks(object):
 
 
     def remove_check(self, context, values):
-        ''' stop and delete adapter for this check and update Ceilometer 
+        ''' stop and delete adapter for this check and update mysql 
         database
         '''        
         check_name = values['check_name']
@@ -142,7 +140,9 @@ class PeriodicChecks(object):
         return False;
 
     def get_running_checks(self):
-        return self.running_checks;
+        if(CONF.periodic_checks.periodic_tasks_running):
+            return self.running_checks;
+        return None
 
     def get_trusted_pool(self):
         if(CONF.periodic_checks.periodic_tasks_running):
@@ -154,3 +154,7 @@ class PeriodicChecks(object):
 
     def turn_on_periodic_check(self):
         CONF.periodic_checks.periodic_tasks_running = True
+
+    def periodic_checks_results_get(self, context, num_of_results=100):
+        results = db.periodic_check_results_get(context, num_of_results)
+        return results
