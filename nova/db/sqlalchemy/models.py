@@ -1422,7 +1422,7 @@ class PeriodicChecks(BASE, NovaBase):
     __table_args__ = ()
     #id = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(Integer, primary_key=True, autoincrement=True)
-    check_name = Column(String(50), primary_key=True, nullable=False)
+    name = Column(String(50), primary_key=True, nullable=False)
     server = Column(String(50), nullable=True)
     status = Column(String(50), nullable=False, default='turn_off')
     spacing = Column(Integer, nullable=False)

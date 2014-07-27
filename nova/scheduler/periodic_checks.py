@@ -117,16 +117,16 @@ class PeriodicChecks(object):
         ''' stop and delete adapter for this check and update mysql
         database
         '''
-        check_name = values['check_name']
-        db.periodic_check_delete(context, check_name)
+        name = values['name']
+        db.periodic_check_delete(context, name)
 
     def update_check(self, context, values):
-        check_name = values['check_name']
-        db.periodic_check_update(context, check_name, values)
+        name = values['name']
+        db.periodic_check_update(context, name, values)
 
     def get_check_by_name(self, context, values):
-        check_name = values['check_name']
-        return db.periodic_check_get(context, check_name)
+        name = values['name']
+        return db.periodic_check_get(context, name)
 
     def get_all_checks(self, context):
         return db.periodic_check_get_all(context)

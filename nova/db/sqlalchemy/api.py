@@ -6148,10 +6148,10 @@ def periodic_checks_results_delete_by_id(context, id):
 
 def _periodic_check_get(context, name, session=None):
     result = model_query(context, models.PeriodicChecks, session=session).\
-            filter_by(check_name=name).\
+            filter_by(name=name).\
             first()
     if not result:
-        raise exception.PeriodicCheckFound(check_name=check_name)
+        raise exception.PeriodicCheckFound(name=name)
     return result
 
 
@@ -6174,21 +6174,21 @@ def periodic_check_create(context, values):
 
 
 @require_admin_context
-def periodic_check_update(context, check_name, values):
+def periodic_check_update(context, name, values):
     session = get_session()
     with session.begin():
-        periodic_check = _periodic_check_get(context, check_name,
+        periodic_check = _periodic_check_get(context, name,
                                                 session=session)
         periodic_check.update(values)
     return periodic_check
 
 
 @require_admin_context
-def periodic_check_delete(context, check_name):
+def periodic_check_delete(context, name):
     session = get_session()
     with session.begin():
         result = model_query(context, models.PeriodicChecks, session=session).\
-                filter_by(check_name=check_name).\
+                filter_by(name=name).\
                 soft_delete(synchronize_session=False)
     if not result:
-        raise exception.PeriodicCheckFound(check_name=check_name)
+        raise exception.PeriodicCheckFound(name=name)

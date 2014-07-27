@@ -2021,13 +2021,13 @@ def periodic_check_create(context, values):
     return IMPL.periodic_check_create(context, values)
 
 
-def periodic_check_update(context, check_name, values):
+def periodic_check_update(context, name, values):
     """Update a periodic check.
     """
-    return IMPL.periodic_check_update(context, check_name, values)
+    return IMPL.periodic_check_update(context, name, values)
 
 
-def periodic_check_delete(context, check_name):
+def periodic_check_delete(context, name):
     """delete a periodic check.
     """
-    return IMPL.periodic_check_delete(context, check_name)
+    return IMPL.periodic_check_delete(context, name)
