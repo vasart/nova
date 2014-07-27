@@ -155,6 +155,11 @@ class PeriodicChecks(object):
     def turn_on_periodic_check(self):
         CONF.periodic_checks.periodic_tasks_running = True
 
+    '''return 100 check resutls by default'''
     def periodic_checks_results_get(self, context, num_of_results=100):
         results = db.periodic_check_results_get(context, num_of_results)
         return results
+
+    def periodic_checks_results_delete_by_id(self, context, id):
+        result = db.periodic_check_results_delete_by_id(context, id)
+        return result

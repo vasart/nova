@@ -1567,6 +1567,14 @@ class PeriodicCheckExists(NovaException):
     msg_fmt = _("Periodic Check with ID %(id)s already exists")
 
 
+class PeriodicCheckFound(NotFound):
+    msg_fmt = _("Periodic check %(check_id)s could not be found.")
+
+
+class PeriodicCheckResultNotFound(NovaException):
+    msg_fmt = _("Periodic Check Result with ID %(id)s does not exist")
+
+
 class KeyManagerError(NovaException):
     msg_fmt = _("Key manager error: %(reason)s")
 
@@ -1622,6 +1630,3 @@ class ImageVCPUTopologyRangeExceeded(Invalid):
 class ImageVCPULimitsRangeImpossible(Invalid):
     msg_fmt = _("Requested vCPU limits %(sockets)d:%(cores)d:%(threads)d "
                 "are impossible to satisfy for vcpus count %(vcpus)d")
-
-class PeriodicCheckFound(NotFound):
-    msg_fmt = _("Periodic check %(check_id)s could not be found.")

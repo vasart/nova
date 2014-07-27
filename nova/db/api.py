@@ -1983,17 +1983,29 @@ def periodic_check_results_store(context, check):
     return IMPL.periodic_check_results_store(context, check)
 
 
+def periodic_checks_results_delete_by_id(context, id):
+    '''delete a periodic check result by specific ids
+
+    Raises PeriodicCheckResultNotFound if periodic check with the given ID
+    doesn't exist.
+    '''
+    return IMPL.periodic_checks_results_delete_by_id(context, id)
+
+
 def periodic_check_get(context, check_name):
     """Get a periodic check by its id.
 
     :param context: The security context
     :param compute_id: ID of the periodic check
 
-    :returns: Dictionary-like object containing properties of the periodic check
+    :returns: Dictionary-like object containing properties of the
+    periodic check
 
-    Raises PeriodicCheckNotFound if periodic check with the given ID doesn't exist.
+    Raises PeriodicCheckNotFound if periodic check with the given ID
+    doesn't exist.
     """
     return IMPL.periodic_check_get(context, check_name)
+
 
 def periodic_check_get_all(context, disabled=None):
     """Get all periodic checks.
@@ -2002,15 +2014,18 @@ def periodic_check_get_all(context, disabled=None):
     """
     return IMPL.periodic_check_get_all(context, disabled)
 
+
 def periodic_check_create(context, values):
     """Create a new periodic check.
     """
     return IMPL.periodic_check_create(context, values)
 
+
 def periodic_check_update(context, check_name, values):
     """Update a periodic check.
     """
     return IMPL.periodic_check_update(context, check_name, values)
+
 
 def periodic_check_delete(context, check_name):
     """delete a periodic check.

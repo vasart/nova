@@ -538,7 +538,9 @@ def service_update(context, service_id, values):
 
     return service_ref
 
+
 ###################
+
 
 def compute_node_get(context, compute_id):
     return _compute_node_get(context, compute_id)
@@ -6102,13 +6104,19 @@ def pci_device_update(context, node_id, address, values):
         session.add(device)
     return device
 
-""" TODO: add admin context"""
+
+####################
+
+
+@require_admin_context
 def periodic_check_results_get(context, num_results):
     results = model_query(context, models.PeriodicChecks).\
+                        filter_by(deleted=0).\
                         limit(num_results)
     return results
 
 
+@require_admin_context
 def periodic_check_results_store(context, check):
     check_ref = models.PeriodicCheckResults()
     check_ref.update(check)
@@ -6118,10 +6126,24 @@ def periodic_check_results_store(context, check):
         raise exception.PeriodicCheckExists(id=check.get('id'))
     return check_ref
 
+
+def periodic_checks_results_delete_by_id(context, id):
+    session = get_session()
+    with session.begin():
+        result = model_query(context, models.PeriodicChecks, session=session).\
+                 filter_by(id=id).\
+                 soft_delete(synchronize_session=False)
+    if not result:
+        raise exception.PeriodicCheckResultNotFound(id=id)
+
+    return True
+
 ###################
+
 
 def periodic_check_get(context, check_name):
     return _periodic_check_get(context, check_name)
+
 
 def _periodic_check_get(context, check_name, session=None):
     result = model_query(context, models.PeriodicChecks, session=session).\
@@ -6131,13 +6153,15 @@ def _periodic_check_get(context, check_name, session=None):
         raise exception.PeriodicCheckFound(check_name=check_name)
     return result
 
+
 @require_admin_context
 def periodic_check_get_all(context, disabled=None):
     query = model_query(context, models.PeriodicChecks)
-    
+
     if disabled is not None:
         query = query.filter_by(disabled=disabled)
     return query.all()
+
 
 @require_admin_context
 def periodic_check_create(context, values):
@@ -6147,6 +6171,7 @@ def periodic_check_create(context, values):
 
     return periodic_check
 
+
 @require_admin_context
 def periodic_check_update(context, check_name, values):
     session = get_session()
@@ -6154,15 +6179,15 @@ def periodic_check_update(context, check_name, values):
         periodic_check = _periodic_check_get(context, check_name,
                                                 session=session)
         periodic_check.update(values)
-
     return periodic_check
+
 
 @require_admin_context
 def periodic_check_delete(context, check_name):
     session = get_session()
     with session.begin():
         result = model_query(context, models.PeriodicChecks, session=session).\
-                 filter_by(check_name=check_name).\
-                 soft_delete(synchronize_session=False)
+                filter_by(check_name=check_name).\
+                soft_delete(synchronize_session=False)
     if not result:
         raise exception.PeriodicCheckFound(check_name=check_name)
