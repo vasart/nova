@@ -1427,6 +1427,6 @@ class PeriodicChecks(BASE, NovaBase):
     status = Column(String(50), nullable=False, default='turn_off')
     spacing = Column(Integer, nullable=False)
     port = Column(Integer, nullable=True)
-    description = Column(String(255), nullable=True)
-    time_out = Column(Integer, nullable=True)
+    desc = Column(String(255), nullable=True)
+    timeout = Column(Integer, nullable=True)
 

@@ -37,8 +37,8 @@ def upgrade(migrate_engine):
         Column('status', String(50), nullable=False, default='turn_off'),
         Column('spacing', Integer, nullable=False),
         Column('port', Integer, nullable=True),
-        Column('time_out', Integer, nullable=True),
-        Column('description', String(255), nullable=True),
+        Column('timeout', Integer, nullable=True),
+        Column('desc', String(255), nullable=True),
     )
     pcr = Table(
         'periodic_check_results', meta, 
