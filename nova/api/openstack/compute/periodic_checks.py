@@ -19,10 +19,9 @@ from nova.api.openstack.compute.views import periodic_check_results \
     as views_periodic_check_results
 from nova.api.openstack import wsgi
 from nova.api.openstack import xmlutil
+from nova import db
 from nova import exception
 from nova.openstack.common import gettextutils
-
-from nova.scheduler import periodic_checks
 
 
 _ = gettextutils._
@@ -95,7 +94,6 @@ class Controller(wsgi.Controller):
     def __init__(self, **kwargs):
         """Initialize new `PeriodicCheckController`."""
         super(Controller, self).__init__(**kwargs)
-        self.periodic_check = periodic_checks.PeriodicChecks()
 
     def _get_filters(self, req):
         """Return a dictionary of query param filters from the request.
@@ -134,7 +132,7 @@ class Controller(wsgi.Controller):
         context = req.environ['nova.context']
 
         try:
-            periodic_check = self.periodic_checks.get_check_by_name(context, name)
+            periodic_check = db.periodic_check_get(context, name)
         except (exception.NotFound):
             explanation = _("Periodic check not found.")
             raise webob.exc.HTTPNotFound(explanation=explanation)
@@ -150,7 +148,7 @@ class Controller(wsgi.Controller):
         """
         context = req.environ['nova.context']
         try:
-            self.periodic_checks.remove_check(context, name);
+            db.periodic_check_delete(context, name)
         except exception.NotFound:
             explanation = _("Periodic check not found.")
             raise webob.exc.HTTPNotFound(explanation=explanation)
@@ -176,7 +174,7 @@ class Controller(wsgi.Controller):
             params[key] = val
 
         try:
-            periodic_checks = self.periodic_checks.get_all_checks(context)
+            periodic_checks = db.periodic_check_get_all(context)
         except exception.Invalid as e:
             raise webob.exc.HTTPBadRequest(explanation=e.format_message())
         return self._view_builder.index(req, periodic_checks)
@@ -195,7 +193,7 @@ class Controller(wsgi.Controller):
         for key, val in page_params.iteritems():
             params[key] = val
         try:
-            periodic_checks = self.periodic_checks.get_all_checks(context)
+            periodic_checks = db.periodic_check_get_all(context)
         except exception.Invalid as e:
             raise webob.exc.HTTPBadRequest(explanation=e.format_message())
 
@@ -221,8 +219,8 @@ class Controller(wsgi.Controller):
             #timeout = periodic_check_dict['timeout']
 
             #periodic_checks.add_check(context, {id, name, desc, spacing, timeout})
-            self.periodic_checks.add_check(context, periodic_check_dict)
-            periodic_check = self.periodic_checks.get_check_by_name(context, name)
+            db.periodic_check_create(context, periodic_check_dict)
+            periodic_check = db.periodic_check_get(context, name)
         except exception.Invalid as e:
             raise webob.exc.HTTPBadRequest(explanation=e.format_message())
 
@@ -239,8 +237,8 @@ class Controller(wsgi.Controller):
             periodic_check_dict = body['periodic_check']
 
             name = periodic_check_dict['name']
-            self.periodic_checks.update_check(context, periodic_check_dict)
-            periodic_check = self.periodic_checks.get_check_by_name(context, name)
+            db.periodic_check_update(context, name, periodic_check_dict)
+            periodic_check = db.periodic_check_get(context, name)
         except exception.Invalid as e:
             raise webob.exc.HTTPBadRequest(explanation=e.format_message())
 
@@ -291,7 +289,7 @@ class ResultsController(wsgi.Controller):
             params[key] = val
 
         try:
-            results = self.periodic_checks.periodic_checks_results_get(context)
+            results = db.periodic_check_results_get(context, num_of_results=100)
         except exception.Invalid as e:
             raise webob.exc.HTTPBadRequest(explanation=e.format_message())
 
