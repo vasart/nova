@@ -74,7 +74,7 @@ class Controller(wsgi.Controller):
         """
         context = req.environ['nova.context']
         try:
-            self.periodic_checks.remove_result(context, id);
+            db.periodic_checks_results_delete_by_id(context, id)
         except exception.NotFound:
             explanation = _("Periodic check result not found.")
             raise webob.exc.HTTPNotFound(explanation=explanation)
