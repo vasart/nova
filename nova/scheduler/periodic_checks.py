@@ -4,8 +4,10 @@ from nova import context
 from nova import db
 from nova import exception
 from nova.openstack.common import timeutils
+from nova.openstack.common import log as logging
 from nova.scheduler import adapters
 
+LOG = logging.getLogger(__name__)
 
 check_opts = [
     cfg.BoolOpt('periodic_tasks_running',
@@ -158,6 +160,7 @@ class PeriodicChecks(object):
                     self.run_check_and_store_result(context, host, adapter, adapter_instance)
 
     def run_check_and_store_result(self, context, host, adapter_name, adapter_instance):
+        LOG.debug("Periodic check store result into DB[%s]", host)
         result, turn_on = adapter_instance.is_trusted(host, 'trusted')
         if turn_on:
             current_host = self.compute_nodes[host]

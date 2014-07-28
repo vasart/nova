@@ -94,7 +94,7 @@ class HTTPSClientAuthConnection(httplib.HTTPSConnection):
         ssl.wrap_socket(), which forces SSL to check server certificate
         against our client certificate.
         """
-        LOG.info("server:%s, port:%s",self.host, self.port)
+        LOG.debug("server:%s, port:%s",self.host, self.port)
         sock = socket.create_connection((self.host, self.port), self.timeout)
         self.sock = ssl.wrap_socket(sock, self.key_file, self.cert_file,
                                     ca_certs=self.ca_file,
@@ -262,7 +262,7 @@ class ComputeAttestationAdapter(adapters.BaseAdapter):
         self.caches = ComputeAttestationCache()
 
     def is_trusted(self, host, trust):
-        LOG.info("ComputeAttestationAdapter[%s]", host)
+        LOG.debug("ComputeAttestationAdapter[%s]", host)
         if CONF.trusted_computing.attestation_status == 'trust_on':
             level = self.caches.get_host_attestation(host)
             return (trust == level, True)
