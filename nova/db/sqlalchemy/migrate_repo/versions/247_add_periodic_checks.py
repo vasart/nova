@@ -47,6 +47,7 @@ def upgrade(migrate_engine):
         Column('deleted_at', DateTime),
         Column('deleted', Integer, default=0), 
         Column('id', Integer, primary_key=True, nullable=False),
+        Column('time', DateTime, default=timeutils.utcnow),
         Column('name', String(length=50)),
         Column('node', String(50), nullable=False),
         Column('result', String(5), nullable=False,default=False),
