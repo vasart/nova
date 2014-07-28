@@ -170,6 +170,7 @@ class PeriodicChecks(object):
             current_host['trust_lvl'] = result
             '''store data'''
             check = {'name': adapter_name,
+                    'time': timeutils.utcnow_ts(),
                     'node': host,
                     'result': result,
                     'status': 'on'}
@@ -183,7 +184,8 @@ class PeriodicChecks(object):
         else:
             '''not store data'''
             check = {'name': adapter_name,
-                      'node': host,
-                      'result': result,
-                      'status': 'off'}
+                    'time' : timeutils.utcnow_ts(),
+                    'node': host,
+                    'result': result,
+                    'status': 'off'}
         db.periodic_check_results_store(context, check)
