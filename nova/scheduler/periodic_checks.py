@@ -152,10 +152,13 @@ class PeriodicChecks(object):
     def run_checks(self, context):
         ''' Store results of each check periodically
         '''
+
         if(PeriodicChecks.periodic_tasks_running):
             adapters = self._get_all_adapters()
             for host in self.compute_nodes:
+                LOG.debug("host:[%s]",host)
                 for index, adapter in enumerate(adapters):
+                    LOG.debug("adapter:[%s]",adapter)
                     adapter_instance = adapters[adapter]()
                     self.run_check_and_store_result(context, host, adapter, adapter_instance)
 
