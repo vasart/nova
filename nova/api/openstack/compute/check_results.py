@@ -56,7 +56,7 @@ class CheckResultsTemplate(xmlutil.TemplateBuilder):
         return xmlutil.MasterTemplate(root, 1, nsmap=check_result_nsmap)
 
 
-class ResultsController(wsgi.Controller):
+class Controller(wsgi.Controller):
 
     """Base controller for retrieving/displaying results."""
 
