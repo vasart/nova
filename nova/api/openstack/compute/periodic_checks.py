@@ -17,8 +17,6 @@ import webob.exc
 from nova.api.openstack import common
 from nova.api.openstack.compute.views import periodic_checks \
     as views_periodic_checks
-from nova.api.openstack.compute.views import periodic_check_results \
-    as views_periodic_check_results
 from nova.api.openstack import wsgi
 from nova.api.openstack import xmlutil
 from nova import db
@@ -47,19 +45,7 @@ def make_periodic_check(elem):
     elem.append(common.MetadataTemplate())
 
 
-def make_periodic_check_result(elem):
-    elem.set('id')
-    elem.set('time')
-    elem.set('name')
-    elem.set('node')
-    elem.set('result')
-    elem.set('status')
-
-    elem.append(common.MetadataTemplate())
-
-
 periodic_check_nsmap = {None: xmlutil.XMLNS_V11, 'atom': xmlutil.XMLNS_ATOM}
-periodic_check_result_nsmap = {None: xmlutil.XMLNS_V11, 'atom': xmlutil.XMLNS_ATOM}
 
 
 class PeriodicCheckTemplate(xmlutil.TemplateBuilder):
@@ -77,15 +63,6 @@ class PeriodicChecksTemplate(xmlutil.TemplateBuilder):
             selector='periodic_check')
         make_periodic_check(elem)
         return xmlutil.MasterTemplate(root, 1, nsmap=periodic_check_nsmap)
-
-
-class ResultsTemplate(xmlutil.TemplateBuilder):
-    def construct(self):
-        root = xmlutil.TemplateElement('periodic_check_results')
-        elem = xmlutil.SubTemplateElement(root, 'periodic_check_result',
-            selector='periodic_check_result')
-        make_periodic_check_result(elem)
-        return xmlutil.MasterTemplate(root, 1, nsmap=periodic_check_result_nsmap)
 
 
 class Controller(wsgi.Controller):
@@ -125,7 +102,7 @@ class Controller(wsgi.Controller):
         return filters
 
     @wsgi.serializers(xml=PeriodicCheckTemplate)
-    def show(self, req, name):
+    def show(self, req, id):
         """Return detailed information about a specific periodic check.
 
         :param req: `wsgi.Request` object
@@ -134,7 +111,7 @@ class Controller(wsgi.Controller):
         context = req.environ['nova.context']
 
         try:
-            periodic_check = db.periodic_check_get(context, name)
+            periodic_check = db.periodic_check_get_by_id(context, id)
         except (exception.NotFound):
             explanation = _("Periodic check not found.")
             raise webob.exc.HTTPNotFound(explanation=explanation)
@@ -142,7 +119,7 @@ class Controller(wsgi.Controller):
         req.cache_db_items('periodic_checks', [periodic_check], 'id')
         return self._view_builder.show(req, periodic_check)
 
-    def delete(self, req, name):
+    def delete(self, req, id):
         """Delete a periodic check, if allowed.
 
         :param req: `wsgi.Request` object
@@ -150,7 +127,7 @@ class Controller(wsgi.Controller):
         """
         context = req.environ['nova.context']
         try:
-            db.periodic_check_delete(context, name)
+            db.periodic_check_delete_by_id(context, id)
             os.remove(("nova/scheduler/adapters/%s.py") % name)
         except exception.NotFound:
             explanation = _("Periodic check not found.")
@@ -251,57 +228,6 @@ class Controller(wsgi.Controller):
             raise webob.exc.HTTPBadRequest(explanation=e.format_message())
 
         return self._view_builder.show(req, periodic_check)
-
-
-class ResultsController(wsgi.Controller):
-
-    """Base controller for retrieving/displaying results."""
-
-    _view_builder_class = views_periodic_check_results.ViewBuilder
-
-    def __init__(self, **kwargs):
-        """Initialize new `ResultsController`."""
-        super(Controller, self).__init__(**kwargs)
-
-    def delete(self, req, id):
-        """Delete a periodic check result, if allowed.
-
-        :param req: `wsgi.Request` object
-        :param id: Periodic check result identifier (integer)
-        """
-        context = req.environ['nova.context']
-        try:
-            self.periodic_checks.remove_result(context, id);
-        except exception.NotFound:
-            explanation = _("Periodic check result not found.")
-            raise webob.exc.HTTPNotFound(explanation=explanation)
-        except exception.Forbidden:
-            # This exception is raised on delete of OpenAttestation check
-            explanation = \
-                _("You are not allowed to delete the periodic check result.")
-            raise webob.exc.HTTPForbidden(explanation=explanation)
-        return webob.exc.HTTPNoContent()
-
-    @wsgi.serializers(xml=ResultsTemplate)
-    def index(self, req):
-        """Return an index listing of results available to the request.
-
-        :param req: `wsgi.Request` object
-
-        """
-        context = req.environ['nova.context']
-        #filters = self._get_filters(req)
-        params = req.GET.copy()
-        page_params = common.get_pagination_params(req)
-        for key, val in page_params.iteritems():
-            params[key] = val
-
-        try:
-            results = db.periodic_check_results_get(context, num_of_results=100)
-        except exception.Invalid as e:
-            raise webob.exc.HTTPBadRequest(explanation=e.format_message())
-
-        return self._view_builder.index(req, results)
 
 
 def create_resource():
