@@ -219,6 +219,8 @@ class Controller(wsgi.Controller):
         :param req: `wsgi.Request` object
         :param body: Periodic check properties
         """
+        context = req.environ['nova.context']
+ 
         try:
             periodic_check_dict = body['periodic_check']
 
