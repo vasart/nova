@@ -169,7 +169,7 @@ class PeriodicChecks(object):
 
         '''store data'''
         check_result = {'name': adapter_name,
-                        'time': timeutils.utcnow_ts(),
+                        'time': timeutils.strtime(),
                         'node': host,
                         'result': result,
                         'status': status}
@@ -177,6 +177,5 @@ class PeriodicChecks(object):
         '''maintain trusted pool'''
         self.compute_nodes[host] = {
                         'trust_lvl': result,
-                        'vtime': timeutils.normalize_time(
-                                timeutils.parse_isotime("1970-01-01T00:00:00Z"))}
+                        'vtime': timeutils.utcnow_ts()}
         db.periodic_check_results_store(context, check_result)
