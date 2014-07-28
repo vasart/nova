@@ -163,8 +163,8 @@ class PeriodicChecks(object):
             current_host = self.compute_nodes[host]
             current_host['trust_lvl'] = result
             '''store data'''
-            check = {'check_id': adapter_name,
-                    'host': host,
+            check = {'name': adapter_name,
+                    'node': host,
                     'result': result,
                     'status': 'on'}
             
@@ -176,8 +176,8 @@ class PeriodicChecks(object):
                                 timeutils.parse_isotime("1970-01-01T00:00:00Z"))}
         else:
             '''not store data'''
-            check = {'check_id': adapter_name,
-                      'host': host,
+            check = {'name': adapter_name,
+                      'node': host,
                       'result': result,
                       'status': 'off'}
         db.periodic_check_results_store(context, check)

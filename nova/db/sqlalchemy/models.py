@@ -1402,16 +1402,17 @@ class PciDevice(BASE, NovaBase):
                             'PciDevice.deleted == 0)')
 
 
-class PeriodicCheckResults(BASE, NovaBase):
+class CheckResults(BASE, NovaBase):
     """Represents results from dynamic checks in nova scheduler's
     periodic_checks file
     """
 
-    __tablename__ = 'periodic_check_results'
+    __tablename__ = 'check_results'
     __table_args__ = ()
     id = Column(Integer, primary_key=True, autoincrement=True)
-    check_id = Column(String(50), nullable=False)
-    host = Column(String(50), nullable=False)
+    name = Column(String(50), nullable=False)
+    time = Column(DateTime)
+    node = Column(String(50), nullable=False)
     result = Column(String(5), nullable=False,default=False)
     status = Column(String(50), nullable=False, default='turn_off')
 
