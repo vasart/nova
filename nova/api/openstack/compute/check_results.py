@@ -101,7 +101,7 @@ class Controller(wsgi.Controller):
         for key, val in page_params.iteritems():
             params[key] = val
         try:
-            results = db.periodic_check_results_get(context, num_of_results=100)
+            results = db.periodic_check_results_get(context, num_results=100)
         except exception.Invalid as e:
             raise webob.exc.HTTPBadRequest(explanation=e.format_message())
 
