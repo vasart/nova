@@ -57,21 +57,6 @@ LOG = logging.getLogger(__name__)
 _ = gettextutils._
 
 trusted_opts = [
-    cfg.StrOpt('attestation_server',
-               help='Attestation server HTTP'),
-    cfg.StrOpt('attestation_server_ca_file',
-               help='Attestation server Cert file for Identity verification'),
-    cfg.StrOpt('attestation_port',
-               default='8181',
-               help='Attestation server port'), 
-    cfg.StrOpt('attestation_api_url',
-               default='/OpenAttestationWebServices/V1.0',
-               help='Attestation web API URL'),
-    cfg.StrOpt('attestation_auth_blob',
-               help='Attestation authorization blob - must change'),
-    cfg.IntOpt('attestation_auth_timeout',
-               default=60,
-               help='Attestation status cache valid period length'),
     cfg.StrOpt('attestation_status',
                default='trust_on',
                help='Attestation status for turn off or on'),
