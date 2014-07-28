@@ -6156,6 +6156,16 @@ def _periodic_check_get(context, name, session=None):
 
 
 @require_admin_context
+def periodic_check_get_by_id(context, id):
+    result = model_query(context, models.PeriodicChecks, session=session).\
+            filter_by(id=id).\
+            first()
+    if not result:
+        raise exception.PeriodicCheckFound(id=id)
+    return result
+
+
+@require_admin_context
 def periodic_check_get_all(context, disabled=None):
     query = model_query(context, models.PeriodicChecks)
 
@@ -6192,3 +6202,13 @@ def periodic_check_delete(context, name):
                 soft_delete(synchronize_session=False)
     if not result:
         raise exception.PeriodicCheckFound(name=name)
+
+@require_admin_context
+def periodic_check_delete_by_id(context, id):
+    session = get_session()
+    with session.begin():
+        result = model_query(context, models.PeriodicChecks, session=session).\
+                filter_by(id=id).\
+                soft_delete(synchronize_session=False)
+    if not result:
+        raise exception.PeriodicCheckFound(id=id)
