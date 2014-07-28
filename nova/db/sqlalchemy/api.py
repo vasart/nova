@@ -6157,6 +6157,7 @@ def _periodic_check_get(context, name, session=None):
 
 @require_admin_context
 def periodic_check_get_by_id(context, id):
+    session = get_session()
     result = model_query(context, models.PeriodicChecks, session=session).\
             filter_by(id=id).\
             first()
