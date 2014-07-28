@@ -16,50 +16,50 @@ from nova.openstack.common import timeutils
 
 class ViewBuilder(common.ViewBuilder):
 
-    _collection_name = "periodic_check_results"
+    _collection_name = "check_results"
 
-    def basic(self, request, periodic_check_result):
+    def basic(self, request, check_result):
         """Return a dictionary with basic result attributes."""
         return {
-            "periodic_check_result": {
-                "id": periodic_check_result.id,
-                "time": periodic_check_result.time,
-                "name": periodic_check_result.name,
-                "node": periodic_check_result.node,
-                "result": periodic_check_result.result,
-                "status": periodic_check_result.status,
+            "check_result": {
+                "id": check_result.id,
+                "time": check_result.time,
+                "name": check_result.name,
+                "node": check_result.node,
+                "result": check_result.result,
+                "status": check_result.status,
             },
         }
 
-    def show(self, request, periodic_check_result):
+    def show(self, request, check_result):
         """Return a dictionary with result details."""
-        periodic_check_result_dict = {
-            "id": periodic_check_result.id,
-            "time": periodic_check_result.time,
-            "name": periodic_check_result.name,
-            "node": periodic_check_result.node,
-            "result": periodic_check_result.result,
-            "status": periodic_check_result.status,
+        check_result_dict = {
+            "id": check_result.id,
+            "time": check_result.time,
+            "name": check_result.name,
+            "node": check_result.node,
+            "result": check_result.result,
+            "status": check_result.status,
         }
 
-        return dict(periodic_check_result=periodic_check_result_dict)
+        return dict(check_result=check_result_dict)
 
-    def detail(self, request, periodic_check_results):
+    def detail(self, request, check_results):
         """Show a list of periodic check results with details."""
         list_func = self.show
-        return self._list_view(list_func, request, periodic_check_results)
+        return self._list_view(list_func, request, check_results)
 
-    def index(self, request, periodic_check_results):
+    def index(self, request, check_results):
         """Show a list of periodic check results with basic attributes."""
         list_func = self.basic
-        return self._list_view(list_func, request, periodic_check_results)
+        return self._list_view(list_func, request, check_results)
 
-    def _list_view(self, list_func, request, periodic_check_results):
+    def _list_view(self, list_func, request, check_results):
         """Provide a view for a list of periodic check results."""
-        periodic_check_result_list = [list_func(request, periodic_check_result)["periodic_check_result"]
-            for periodic_check_result in periodic_check_results]
+        check_result_list = [list_func(request, check_result)["check_result"]
+            for check_result in check_results]
 
-        return dict(periodic_check_results=periodic_check_result_list)
+        return dict(check_results=check_result_list)
 
     @staticmethod
     def _format_date(dt):

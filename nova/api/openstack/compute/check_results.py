@@ -26,10 +26,12 @@ _ = gettextutils._
 
 
 SUPPORTED_FILTERS = {
-    'name': 'name',
-    'desc': 'desc',
-    'timeout': 'timeout',
-    'spacing': 'spacing',
+    "id": "id",
+    "time": "time",
+    "name": "name",
+    "node": "node",
+    "result": "result",
+    "status": "status",
 }
 
 
