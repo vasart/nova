@@ -63,7 +63,7 @@ trusted_opts = [
                help='Attestation server Cert file for Identity verification'),
     cfg.StrOpt('attestation_port',
                default='8181',
-               help='Attestation server port'),
+               help='Attestation server port'), 
     cfg.StrOpt('attestation_api_url',
                default='/OpenAttestationWebServices/V1.0',
                help='Attestation web API URL'),
