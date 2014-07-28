@@ -6192,3 +6192,13 @@ def periodic_check_delete(context, name):
                 soft_delete(synchronize_session=False)
     if not result:
         raise exception.PeriodicCheckFound(name=name)
+
+@require_admin_context
+def periodic_check_delete(context, id):
+    session = get_session()
+    with session.begin():
+        result = model_query(context, models.PeriodicChecks, session=session).\
+                filter_by(id=id).\
+                soft_delete(synchronize_session=False)
+    if not result:
+        raise exception.PeriodicCheckFound(id=id)

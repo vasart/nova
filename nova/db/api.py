@@ -2031,3 +2031,11 @@ def periodic_check_delete(context, name):
     """delete a periodic check.
     """
     return IMPL.periodic_check_delete(context, name)
+
+def periodic_check_delete_by_id(context, id):
+    '''delete a periodic check by specific id
+
+    Raises PeriodicCheckNotFound if periodic check with the given ID
+    doesn't exist.
+    '''
+    return IMPL.periodic_check_delete_by_id(context, id)
