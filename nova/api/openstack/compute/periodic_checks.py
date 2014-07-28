@@ -127,8 +127,9 @@ class Controller(wsgi.Controller):
         """
         context = req.environ['nova.context']
         try:
+            periodic_check = db.periodic_check_get_by_id(context, id)
             db.periodic_check_delete_by_id(context, id)
-            os.remove(("nova/scheduler/adapters/%s.py") % name)
+            os.remove(("nova/scheduler/adapters/%s.py") % periodic_check.name)
         except exception.NotFound:
             explanation = _("Periodic check not found.")
             raise webob.exc.HTTPNotFound(explanation=explanation)
