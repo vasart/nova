@@ -6110,7 +6110,7 @@ def pci_device_update(context, node_id, address, values):
 
 @require_admin_context
 def periodic_check_results_get(context, num_results):
-    results = model_query(context, models.PeriodicChecks).\
+    results = model_query(context, models.PeriodicCheckResults).\
                         filter_by(deleted=0).\
                         limit(num_results)
     return results
@@ -6130,7 +6130,7 @@ def periodic_check_results_store(context, check):
 def periodic_checks_results_delete_by_id(context, id):
     session = get_session()
     with session.begin():
-        result = model_query(context, models.PeriodicChecks, session=session).\
+        result = model_query(context, models.PeriodicChecksResults, session=session).\
                  filter_by(id=id).\
                  soft_delete(synchronize_session=False)
     if not result:
