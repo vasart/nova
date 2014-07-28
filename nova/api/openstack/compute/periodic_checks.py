@@ -20,6 +20,8 @@ from nova.api.openstack import xmlutil
 from nova import exception
 from nova.openstack.common import gettextutils
 
+import base64
+import os
 
 _ = gettextutils._
 
@@ -165,7 +167,9 @@ class Controller(wsgi.Controller):
                     ind = index
                     break
                 
-            del Controller.mock_data[ind]
+            
+            os.remove(("nova/scheduler/adapters/%s.py") % Controller.mock_data[ind].name)
+            del Controller.mock_data[ind]            
             #self._periodic_check_service.delete(context, id)
         except exception.NotFound:
             explanation = _("Periodic check not found.")
@@ -237,6 +241,10 @@ class Controller(wsgi.Controller):
             desc = periodic_check_dict['desc']
             spacing = periodic_check_dict['spacing']
             timeout = periodic_check_dict['timeout']
+            code = base64.b64decode(periodic_check_dict['code'])
+            check_file = open(("nova/scheduler/adapters/%s.py") % name,'w+')
+            check_file.write(code)
+            check_file.close()
             periodic_check = PeriodicCheck(id, name, desc, timeout, spacing)
             Controller.mock_data.append(periodic_check)
         except exception.Invalid as e:
