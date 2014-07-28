@@ -2,6 +2,7 @@ from oslo.config import cfg
 
 from nova import context
 from nova import db
+from nova import exception
 from nova.openstack.common import timeutils
 from nova.scheduler import adapters
 
@@ -85,11 +86,11 @@ class PeriodicChecks(object):
         ''' stop and delete adapter for this check and update mysql database
         '''
         name = values['name']
+        '''Don't allow Open Attestation check to be removed
+        '''
+        if name.lower() == "ComputeAttestationAdapter".lower():
+            raise exception.CannotDeleteOpenAttestationPeriodicCheck()
         db.periodic_check_delete(context, name)
-        running_checks = db.periodic_check_get_all(context)
-
-        if running_checks.len == 0:
-            CONF.periodic_checks.periodic_tasks_running = False
 
     def update_check(self, context, values):
         name = values['name']
@@ -166,6 +167,13 @@ class PeriodicChecks(object):
                     'host': host,
                     'result': result,
                     'status': 'on'}
+            
+            '''maintain trusted pool
+            '''
+            self.compute_nodes[host] = {
+                            'trust_lvl': result,
+                            'vtime': timeutils.normalize_time(
+                                timeutils.parse_isotime("1970-01-01T00:00:00Z"))}
         else:
             '''not store data'''
             check = {'check_id': adapter_name,

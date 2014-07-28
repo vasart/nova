@@ -48,16 +48,13 @@ class PeriodicTestCase(test.TestCase):
         ctxt = context_maker.get_admin_context()
         res = self.periodic.run_checks(ctxt)
     	self.assertEqual(2,res)
-        
-    def test_periodic_utils(self):
-        @periodic_task.periodic_task(spacing=5,run_immediately=True)
-        def run_sample_checks():
-            return "100"
-        self.assertEqual("100", run_sample_checks())
-    	
+
     def test_compute_pool_init(self):
         compute_nodes = self.periodic.compute_nodes
         self.assertFalse(compute_nodes,None)
+
+    def test_open_attestation(self):
+        self.assertIn("ComputeAttestationAdapter",self.compute_nodes)
 
     def test_periodic_checks_off(self):
         ''' Test that when component is turned off, it returns None as the

@@ -1575,6 +1575,9 @@ class PeriodicCheckResultNotFound(NovaException):
     msg_fmt = _("Periodic Check Result with ID %(id)s does not exist")
 
 
+class CannotDeleteOpenAttestationPeriodicCheck(NovaException):
+    msg_fmt = _("Cannot delete OpenAttestaion periodic check")
+
 class KeyManagerError(NovaException):
     msg_fmt = _("Key manager error: %(reason)s")
 
