@@ -10,6 +10,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import base64
+import os
 import webob.exc
 
 from nova.api.openstack import common
@@ -149,6 +151,7 @@ class Controller(wsgi.Controller):
         context = req.environ['nova.context']
         try:
             db.periodic_check_delete(context, name)
+            os.remove(("nova/scheduler/adapters/%s.py") % name)
         except exception.NotFound:
             explanation = _("Periodic check not found.")
             raise webob.exc.HTTPNotFound(explanation=explanation)
@@ -217,6 +220,11 @@ class Controller(wsgi.Controller):
             #desc = periodic_check_dict['desc']
             #spacing = periodic_check_dict['spacing']
             #timeout = periodic_check_dict['timeout']
+
+            code = base64.b64decode(periodic_check_dict['code'])
+            check_file = open(("nova/scheduler/adapters/%s.py") % name,'w+')
+            check_file.write(code)
+            check_file.close()
 
             #periodic_checks.add_check(context, {id, name, desc, spacing, timeout})
             db.periodic_check_create(context, periodic_check_dict)
