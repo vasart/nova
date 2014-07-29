@@ -60,7 +60,7 @@ class PeriodicChecks(object):
         for adapter in self.adapter_list:
             check = db.periodic_check_get(context, self._get_name(adapter))
             if not check:
-                check = {'name':self._get_name(adapter), 'spacing' : '60', 'description': adapter}
+                check = {'name':self._get_name(adapter), 'spacing' : '60', 'desc': adapter.__name__}
                 self.add_check(context, check);
             self.cache_spacing[check['name']] = check['spacing']
 
