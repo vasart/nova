@@ -1410,11 +1410,12 @@ class CheckResults(BASE, NovaBase):
     __tablename__ = 'check_results'
     __table_args__ = ()
     id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(50), nullable=False)
-    time = Column(DateTime)
+    check_id = Column(Integer, nullable=False)
+    check_name = Column(String(50), nullable=False)
+    time = Column(DateTime, nullable=False)
     node = Column(String(50), nullable=False)
-    result = Column(String(5), nullable=False,default=False)
-    status = Column(String(50), nullable=False, default='turn_off')
+    result = Column(String(5), nullable=False, default=False)
+    status = Column(String(50), nullable=False)
 
 class PeriodicChecks(BASE, NovaBase):
     """Store dynamic checks

@@ -6130,7 +6130,7 @@ def periodic_check_results_store(context, check):
 def periodic_checks_results_delete_by_id(context, id):
     session = get_session()
     with session.begin():
-        result = model_query(context, models.ChecksResults, session=session).\
+        result = model_query(context, models.CheckResults, session=session).\
                  filter_by(id=id).\
                  soft_delete(synchronize_session=False)
     if not result:

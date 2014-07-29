@@ -151,7 +151,8 @@ class PeriodicChecks(object):
             for host in input_nodes:
                 for index, adapter in enumerate(self.adapters):
                     adapter_instance = adapters[adapter]()
-                    self.run_check_and_store_result(context, host, adapter, adapter_instance)
+                    self.run_check_and_store_result(context, host, adapter,
+                        adapter_instance)
 
     def run_checks(self, context):
         ''' Store results of each check periodically
@@ -160,34 +161,32 @@ class PeriodicChecks(object):
         if(PeriodicChecks.periodic_tasks_running):
             adapters = self._get_all_adapters()
             for host in self.compute_nodes:
-                LOG.debug("host:[%s]",host)
                 for index, adapter in enumerate(adapters):
-                    LOG.debug("adapter:[%s]",adapter)
                     adapter_instance = adapters[adapter]()
-                    self.run_check_and_store_result(context, host, adapter, adapter_instance)
+                    periodic_check = db.periodic_check_get(context,
+                        adapter_instance.get_name())
+                    self.run_check_and_store_result(context, host,
+                        periodic_check, adapter_instance)
 
-    def run_check_and_store_result(self, context, host, adapter_name, adapter_instance):
+    def run_check_and_store_result(self, context, host, periodic_check,
+                                    adapter_instance):
         LOG.debug("Periodic check store result into DB[%s]", host)
-        result, turn_on = adapter_instance.is_trusted(host, 'trusted')
-        if turn_on:
-            current_host = self.compute_nodes[host]
-            current_host['trust_lvl'] = result
-            '''store data'''
-            check = {'name': adapter_name,
-                    'node': host,
-                    'result': result,
-                    'status': 'on'}
-            
-            '''maintain trusted pool
-            '''
-            self.compute_nodes[host] = {
-                            'trust_lvl': result,
-                            'vtime': timeutils.normalize_time(
-                                timeutils.parse_isotime("1970-01-01T00:00:00Z"))}
-        else:
-            '''not store data'''
-            check = {'name': adapter_name,
-                      'node': host,
-                      'result': result,
-                      'status': 'off'}
-        db.periodic_check_results_store(context, check)
+        result, status = adapter_instance.is_trusted(host, 'trusted')
+
+        current_host = self.compute_nodes[host]
+        current_host['trust_lvl'] = result
+
+        '''store data'''
+        check_result = {'check_id': periodic_check.id,
+                        'check_name': periodic_check.name,
+                        'time': timeutils.strtime(),
+                        'node': host,
+                        'result': result,
+                        'status': status}
+
+        '''maintain trusted pool'''
+        self.compute_nodes[host] = {
+                        'trust_lvl': result,
+                        'vtime': timeutils.utcnow_ts()}
+
+        db.periodic_check_results_store(context, check_result)
