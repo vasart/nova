@@ -174,7 +174,7 @@ class PeriodicChecks(object):
                 for adapter in self.adapter_list:
                     adapter_instance = adapter()
                     check = db.periodic_check_get(context,
-                        adapter_instance.get_name())
+                        self._get_name(adapter))
                     self.cache_spacing[check['name']] += self.spacing
                     if self.cache_spacing[check['name']] >= check['spacing']:
                         self.run_check_and_store_result(context, host,
