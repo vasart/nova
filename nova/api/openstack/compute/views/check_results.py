@@ -24,7 +24,8 @@ class ViewBuilder(common.ViewBuilder):
             "check_result": {
                 "id": check_result.id,
                 "time": check_result.time,
-                "name": check_result.name,
+                "check_id": check_result.check_id,
+                "name": check_result.check_name,
                 "node": check_result.node,
                 "result": check_result.result,
                 "status": check_result.status,
@@ -36,7 +37,8 @@ class ViewBuilder(common.ViewBuilder):
         check_result_dict = {
             "id": check_result.id,
             "time": check_result.time,
-            "name": check_result.name,
+            "check_id": check_result.check_id,
+            "name": check_result.check_name,
             "node": check_result.node,
             "result": check_result.result,
             "status": check_result.status,
