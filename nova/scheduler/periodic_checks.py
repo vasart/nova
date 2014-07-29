@@ -147,7 +147,8 @@ class PeriodicChecks(object):
             for host in input_nodes:
                 for index, adapter in enumerate(adapters):
                     adapter_instance = adapters[adapter]()
-                    self.run_check_and_store_result(context, host, adapter, adapter_instance)
+                    self.run_check_and_store_result(context, host, adapter,
+                        adapter_instance)
 
     def run_checks(self, context):
         ''' Store results of each check periodically
@@ -158,10 +159,13 @@ class PeriodicChecks(object):
             for host in self.compute_nodes:
                 for index, adapter in enumerate(adapters):
                     adapter_instance = adapters[adapter]()
-                    periodic_check = db.periodic_check_get(context, adapter_instance.get_name)
-                    self.run_check_and_store_result(context, host, periodic_check, adapter_instance)
+                    periodic_check = db.periodic_check_get(context,
+                        adapter_instance.get_name())
+                    self.run_check_and_store_result(context, host,
+                        periodic_check, adapter_instance)
 
-    def run_check_and_store_result(self, context, host, periodic_check, adapter_instance):
+    def run_check_and_store_result(self, context, host, periodic_check,
+                                    adapter_instance):
         LOG.debug("Periodic check store result into DB[%s]", host)
         result, status = adapter_instance.is_trusted(host, 'trusted')
 
