@@ -6150,8 +6150,6 @@ def _periodic_check_get(context, name, session=None):
     result = model_query(context, models.PeriodicChecks, session=session).\
             filter_by(name=name).\
             first()
-    if not result:
-        raise exception.PeriodicCheckFound(name=name)
     return result
 
 

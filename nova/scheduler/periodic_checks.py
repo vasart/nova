@@ -1,5 +1,8 @@
 from oslo.config import cfg
 
+from inspect import getfile
+from os import path
+
 from nova import context
 from nova import db
 from nova import exception
@@ -54,12 +57,12 @@ class PeriodicChecks(object):
         self._initialize_DB(admin)
 
     def _initialize_DB(self, context):
-        for _, adapter in enumerate(self.adapter_list):
-            check = self.get_check_by_name(context, adapter.get_name(adapter)) 
-            if check is None:
-                check = {'check_name':adapter.get_name(adapter), 'spacing' : '60', 'description': adapter}
-                self.add_check(check);
-            self.cache_spacing[check['check_name']] = check['spacing']
+        for adapter in self.adapter_list:
+            check = db.periodic_check_get(context, self._get_name(adapter))
+            if not check:
+                check = {'name':self._get_name(adapter), 'spacing' : '60', 'description': adapter}
+                self.add_check(context, check);
+            self.cache_spacing[check['name']] = check['spacing']
 
     def initialize_trusted_pool(self, context):
         computes = db.compute_node_get_all(context)
@@ -78,10 +81,11 @@ class PeriodicChecks(object):
         adapter_handler = adapters.AdapterHandler()
         classes = adapter_handler.get_matching_classes(
             ['nova.scheduler.adapters.all_adapters'])
-        class_map = {}
-        for cls in classes:
-            class_map[cls.__name__] = cls
-        return class_map
+        return classes
+        # class_map = {}
+        # for cls in classes:
+        #     class_map[cls.__name__] = cls
+        # return class_map
 
     ''' Add checks through horizon
     @param id: identifier for the check
@@ -159,25 +163,27 @@ class PeriodicChecks(object):
     def run_checks_specific_nodes(self, context, input_nodes):
         if(PeriodicChecks.periodic_tasks_running):
             for host in input_nodes:
-                for index, adapter in enumerate(self.adapter_list):
-                    adapter_instance = adapters[adapter]()
-                    self.run_check_and_store_result(context, host, adapter,
-                        adapter_instance)
+                for adapter in self.adapter_list:
+                    adapter_instance = adapter()
+                    check = db.periodic_check_get(context,
+                                                  adapter_instance.get_name())
+                    self.run_check_and_store_result(context, host, check,
+                                                    adapter_instance)
 
     def run_checks(self, context):
         ''' Store results of each check periodically
         '''
         if(PeriodicChecks.periodic_tasks_running):
             for host in self.compute_nodes:
-                for index, adapter in enumerate(self.adapter_list):
-                    adapter_instance = adapters[adapter]()
+                for adapter in self.adapter_list:
+                    adapter_instance = adapter()
                     check = db.periodic_check_get(context,
                         adapter_instance.get_name())
-                    self.cache_spacing[check['check_name']] += self.spacing
-                    if self.cache_spacing[check['check_name']] >= check['spacing']:
+                    self.cache_spacing[check['name']] += self.spacing
+                    if self.cache_spacing[check['name']] >= check['spacing']:
                         self.run_check_and_store_result(context, host,
                             check, adapter_instance)
-                        self.cache_spacing[check['check_name']] = 0
+                        self.cache_spacing[check['name']] = 0
 
     def run_check_and_store_result(self, context, host, check,
                                     adapter_instance):
@@ -201,3 +207,7 @@ class PeriodicChecks(object):
                         'vtime': timeutils.utcnow_ts()}
 
         db.periodic_check_results_store(context, check_result)
+
+    def _get_name(self, className):
+        return path.splitext(path.basename(getfile(className)))[0]
+
