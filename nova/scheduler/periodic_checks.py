@@ -43,6 +43,13 @@ class PeriodicChecks(object):
 
     ''' periodic tasks not running by default '''
     periodic_tasks_running = True
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super(PeriodicChecks, cls).__new__(
+                                cls, *args, **kwargs)
+        return cls._instance
 
     def __init__(self):
         admin = context.get_admin_context()

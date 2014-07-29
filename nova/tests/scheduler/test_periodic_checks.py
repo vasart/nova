@@ -45,6 +45,11 @@ class PeriodicTestCase(test.TestCase):
         compute_nodes = self.periodic.compute_nodes
         self.assertFalse(compute_nodes,None)
 
+    def test_singleton_class(self):
+        instance_1 = self.periodic_cls()
+        instance_2 = self.periodic_cls()
+        self.assertEqual(instance_1, instance_2)
+
     def test_periodic_checks_off(self):
         ''' Test that when component is turned off, it returns None as the
         compute pool

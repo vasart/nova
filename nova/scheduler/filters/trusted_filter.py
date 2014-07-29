@@ -285,7 +285,7 @@ class TrustedFilter(filters.BaseHostFilter):
     def host_passes(self, host_state, filter_properties):
         ''' Check if periodic tasks are running.'''
         # get the nodes from Periodic Tasks
-        hosts = periodic_checks.PeriodicChecks.get_trusted_pool
+        hosts = periodic_checks.PeriodicChecks().get_trusted_pool
         if CONF.periodic_checks.periodic_tasks_running:
             # periodic checks are running
             host = hosts[host_state.host]
