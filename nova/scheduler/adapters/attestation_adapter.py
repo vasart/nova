@@ -128,6 +128,7 @@ class AttestationService(object):
             c.request(method, action_url, body, headers)
             res = c.getresponse()
             status_code = res.status
+            LOG.debug("connection status:%s", status_code)
             if status_code in (httplib.OK,
                                httplib.CREATED,
                                httplib.ACCEPTED,

@@ -40,13 +40,18 @@ class PeriodicChecks(object):
 
     def __init__(self):
         self.compute_nodes = {}
-        ''' get all adapters '''
-        self.adapter_handler = adapters.AdapterHandler()
         ''' all compute nodes '''
         self.compute_nodes = {}
         '''all attached adapters '''
         self.class_map = {}
         self.initialize_trusted_pool()
+        self.adapters = self._get_all_adapters()
+        self._initialize_DB()
+
+    def _initialize_DB(self):
+        for _, adapter in enumerate(self.adapters):
+            new_check = {'check_name':adapter, 'spacing' : '60', 'description': adapter}
+            self.add_check(new_check);
 
     def initialize_trusted_pool(self):
         admin = context.get_admin_context()
@@ -143,9 +148,8 @@ class PeriodicChecks(object):
     '''
     def run_checks_specific_nodes(self, context, input_nodes):
         if(PeriodicChecks.periodic_tasks_running):
-            adapters = self._get_all_adapters()
             for host in input_nodes:
-                for index, adapter in enumerate(adapters):
+                for index, adapter in enumerate(self.adapters):
                     adapter_instance = adapters[adapter]()
                     self.run_check_and_store_result(context, host, adapter, adapter_instance)
 
