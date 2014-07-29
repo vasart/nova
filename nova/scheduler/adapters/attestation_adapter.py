@@ -56,17 +56,7 @@ from nova.scheduler import adapters
 LOG = logging.getLogger(__name__)
 _ = gettextutils._
 
-trusted_opts = [
-    cfg.StrOpt('attestation_status',
-               default='trust_on',
-               help='Attestation status for turn off or on'),
-]
-
 CONF = cfg.CONF
-trust_group = cfg.OptGroup(name='trusted_computing',
-                           title='Trust parameters')
-CONF.register_group(trust_group)
-CONF.register_opts(trusted_opts, group=trust_group)
 
 
 class HTTPSClientAuthConnection(httplib.HTTPSConnection):
@@ -197,20 +187,9 @@ class ComputeAttestationCache(object):
                 LOG.warn(_("No service for compute ID %s") % compute['id'])
                 continue
             host = service['host']
-            self._init_cache_entry(host)
+            self._init_entry(host)
 
-    def _cache_valid(self, host):
-        cachevalid = False
-        if host in self.compute_nodes:
-            node_stats = self.compute_nodes.get(host)
-            if not timeutils.is_older_than(
-                node_stats['vtime'],
-                CONF.trusted_computing.attestation_auth_timeout
-            ):
-                cachevalid = True
-        return cachevalid
-
-    def _init_cache_entry(self, host):
+    def _init_entry(self, host):
         self.compute_nodes[host] = {
             'trust_lvl': 'unknown',
             'vtime': timeutils.normalize_time(
@@ -218,11 +197,7 @@ class ComputeAttestationCache(object):
             )
         }
 
-    def _invalidate_caches(self):
-        for host in self.compute_nodes:
-            self._init_cache_entry(host)
-
-    def _update_cache_entry(self, state):
+    def _update_entry(self, state):
         entry = {}
 
         host = state['host_name']
@@ -240,32 +215,26 @@ class ComputeAttestationCache(object):
 
         self.compute_nodes[host] = entry
 
-    def _update_cache(self):
-        self._invalidate_caches()
+    def _run_adapter(self):
         states = self.attestservice.do_attestation(self.compute_nodes.keys())
         if states is None:
             return
         for state in states:
-            self._update_cache_entry(state)
+            self._update_entry(state)
 
     def get_host_attestation(self, host):
         """Check host's trust level."""
         if host not in self.compute_nodes:
-            self._init_cache_entry(host)
-        if not self._cache_valid(host):
-            self._update_cache()
+            self._init_entry(host)
+        self._run_adapter()
         level = self.compute_nodes.get(host).get('trust_lvl')
         return level
-
 
 class ComputeAttestationAdapter(adapters.BaseAdapter):
     def __init__(self):
         self.caches = ComputeAttestationCache()
 
     def is_trusted(self, host, trust):
-        LOG.debug("ComputeAttestationAdapter[%s]", host)
-        if CONF.trusted_computing.attestation_status == 'trust_on':
-            level = self.caches.get_host_attestation(host)
-            return (trust == level, True)
-        else:
-            return (True, False)
+        level = self.caches.get_host_attestation(host)
+        LOG.debug("ComputeAttestationAdapter[%s]:%s", host, level)
+        return (trust == level, level)

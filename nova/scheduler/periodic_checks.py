@@ -13,6 +13,9 @@ check_opts = [
     cfg.BoolOpt('periodic_tasks_running',
                 default=True,
                 help='Periodic check status'),
+    cfg.IntOpt('spacing',
+                default=10,
+                help='Periodic check spacing time'),
 ]
 
 CONF = cfg.CONF
@@ -39,23 +42,27 @@ class PeriodicChecks(object):
     periodic_tasks_running = True
 
     def __init__(self):
-        self.compute_nodes = {}
+        admin = context.get_admin_context()
+        self.cache_spacing = {}
+        self.spacing = CONF.periodic_checks.spacing
         ''' all compute nodes '''
         self.compute_nodes = {}
         '''all attached adapters '''
         self.class_map = {}
-        self.initialize_trusted_pool()
-        self.adapters = self._get_all_adapters()
-        self._initialize_DB()
+        self.adapter_list = self._get_all_adapters()
+        self.initialize_trusted_pool(admin)
+        self._initialize_DB(admin)
 
-    def _initialize_DB(self):
-        for _, adapter in enumerate(self.adapters):
-            new_check = {'check_name':adapter, 'spacing' : '60', 'description': adapter}
-            self.add_check(new_check);
+    def _initialize_DB(self, context):
+        for _, adapter in enumerate(self.adapter_list):
+            check = self.get_check_by_name(context, adapter.get_name(adapter)) 
+            if check is None:
+                check = {'check_name':adapter.get_name(adapter), 'spacing' : '60', 'description': adapter}
+                self.add_check(check);
+            self.cache_spacing[check['check_name']] = check['spacing']
 
-    def initialize_trusted_pool(self):
-        admin = context.get_admin_context()
-        computes = db.compute_node_get_all(admin)
+    def initialize_trusted_pool(self, context):
+        computes = db.compute_node_get_all(context)
         for compute in computes:
             service = compute['service']
             host = service['host']
@@ -88,6 +95,7 @@ class PeriodicChecks(object):
         '''
         CONF.periodic_checks.periodic_tasks_running = True
         db.periodic_check_create(context, values)
+        self.adapter_list = self._get_all_adapters()
 
     def remove_check(self, context, values):
         ''' stop and delete adapter for this check and update mysql database
@@ -98,10 +106,12 @@ class PeriodicChecks(object):
         if name.lower() == "ComputeAttestationAdapter".lower():
             raise exception.CannotDeleteOpenAttestationPeriodicCheck()
         db.periodic_check_delete(context, name)
+        self.adapter_list = self._get_all_adapters()
 
     def update_check(self, context, values):
         name = values['name']
         db.periodic_check_update(context, name, values)
+        self.cache_spacing[name] = values['spacing']
 
     def get_check_by_name(self, context, values):
         name = values['name']
@@ -149,7 +159,7 @@ class PeriodicChecks(object):
     def run_checks_specific_nodes(self, context, input_nodes):
         if(PeriodicChecks.periodic_tasks_running):
             for host in input_nodes:
-                for index, adapter in enumerate(self.adapters):
+                for index, adapter in enumerate(self.adapter_list):
                     adapter_instance = adapters[adapter]()
                     self.run_check_and_store_result(context, host, adapter,
                         adapter_instance)
@@ -157,18 +167,19 @@ class PeriodicChecks(object):
     def run_checks(self, context):
         ''' Store results of each check periodically
         '''
-
         if(PeriodicChecks.periodic_tasks_running):
-            adapters = self._get_all_adapters()
             for host in self.compute_nodes:
-                for index, adapter in enumerate(adapters):
+                for index, adapter in enumerate(self.adapter_list):
                     adapter_instance = adapters[adapter]()
-                    periodic_check = db.periodic_check_get(context,
+                    check = db.periodic_check_get(context,
                         adapter_instance.get_name())
-                    self.run_check_and_store_result(context, host,
-                        periodic_check, adapter_instance)
+                    self.cache_spacing[check['check_name']] += self.spacing
+                    if self.cache_spacing[check['check_name']] >= check['spacing']:
+                        self.run_check_and_store_result(context, host,
+                            check, adapter_instance)
+                        self.cache_spacing[check['check_name']] = 0
 
-    def run_check_and_store_result(self, context, host, periodic_check,
+    def run_check_and_store_result(self, context, host, check,
                                     adapter_instance):
         LOG.debug("Periodic check store result into DB[%s]", host)
         result, status = adapter_instance.is_trusted(host, 'trusted')
@@ -177,8 +188,8 @@ class PeriodicChecks(object):
         current_host['trust_lvl'] = result
 
         '''store data'''
-        check_result = {'check_id': periodic_check.id,
-                        'check_name': periodic_check.name,
+        check_result = {'check_id': check.id,
+                        'check_name': check.name,
                         'time': timeutils.strtime(),
                         'node': host,
                         'result': result,

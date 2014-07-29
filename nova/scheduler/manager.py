@@ -163,7 +163,7 @@ class SchedulerManager(manager.Manager):
     def _run_periodic_tasks(self, context):
         self.driver.run_periodic_tasks(context)
 
-    @periodic_task.periodic_task(spacing=8,
+    @periodic_task.periodic_task(spacing=CONF.periodic_checks.spacing,
                                  run_immediately=True)
     def _run_periodic_checks(self, context):
         self.periodic_checks.run_checks(context)
