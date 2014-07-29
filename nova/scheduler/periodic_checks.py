@@ -174,7 +174,7 @@ class PeriodicChecks(object):
 
         '''store data'''
         check_result = {'check_id': periodic_check.id,
-                        'check_name': periodic_check.name,
+                        'name': periodic_check.name,
                         'time': timeutils.strtime(),
                         'node': host,
                         'result': result,
