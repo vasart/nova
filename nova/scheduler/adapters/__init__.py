@@ -13,6 +13,7 @@
 """
 Adapter
 """
+from inspect import getfile
 from os import path
 
 from nova import loadables
@@ -21,7 +22,7 @@ from nova import loadables
 class BaseAdapter(object):
     """Base class for adapter."""
     def get_name(self):
-        return path.splitext(path.basename(self.__file__))[0]
+        return path.splitext(path.basename(getfile(self.__class__)))[0]
 
     def is_trusted(self, host, trust):
         """Return True if the HostState isTrusted, otherwise False.
