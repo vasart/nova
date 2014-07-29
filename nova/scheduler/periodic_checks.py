@@ -82,10 +82,6 @@ class PeriodicChecks(object):
         classes = adapter_handler.get_matching_classes(
             ['nova.scheduler.adapters.all_adapters'])
         return classes
-        # class_map = {}
-        # for cls in classes:
-        #     class_map[cls.__name__] = cls
-        # return class_map
 
     ''' Add checks through horizon
     @param id: identifier for the check

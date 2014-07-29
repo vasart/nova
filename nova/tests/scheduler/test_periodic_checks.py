@@ -19,8 +19,8 @@ from oslo.config import cfg
 from nova import context as context_maker
 from nova import test
 from nova import db
+from nova.openstack.common import periodic_task
 from nova.scheduler import periodic_checks as pc
-from nova.adapters.attestation_adapter import ComputeAttestationAdapter
 
 CONF = cfg.CONF
 
@@ -41,15 +41,9 @@ class PeriodicTestCase(test.TestCase):
         self.periodic = self.periodic_cls()
         self.req = FakeRequest()
 
-    def test__init__(self):
-        self.assertEqual(1,self.periodic.check_times)
-
     def test_compute_pool_init(self):
         compute_nodes = self.periodic.compute_nodes
         self.assertFalse(compute_nodes,None)
-
-    def test_open_attestation(self):
-        self.assertIn(ComputeAttestationAdapter ,self.periodic.adapter_list)
 
     def test_periodic_checks_off(self):
         ''' Test that when component is turned off, it returns None as the
@@ -57,6 +51,12 @@ class PeriodicTestCase(test.TestCase):
         '''
         self.periodic.turn_off_periodic_check()
         self.assertEqual(None,self.periodic.get_trusted_pool())
+
+    def test_attestation(self):
+        class_map = {}
+        for cls in self.periodic.adapter_list:
+            class_map[cls.__name__] = cls
+        self.assertIn('ComputeAttestationAdapter',class_map)
 
     def test_check_running(self):
         self.assertTrue(CONF.periodic_checks.periodic_tasks_running)
