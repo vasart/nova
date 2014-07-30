@@ -2,6 +2,7 @@ from oslo.config import cfg
 
 from inspect import getfile
 from os import path
+import threading
 
 from nova import context
 from nova import db
@@ -67,7 +68,7 @@ class PeriodicChecks(object):
         for adapter in self.adapter_list:
             check = db.periodic_check_get(context, self._get_name(adapter))
             if not check:
-                check = {'name':self._get_name(adapter), 'spacing' : 60, 'desc': adapter.__name__}
+                check = {'name':self._get_name(adapter), 'spacing' : 60, 'desc': adapter.__name__, 'timeout':10}
                 self.add_check(context, check);
             self.cache_spacing[check['name']] = check['spacing']
 
@@ -191,22 +192,41 @@ class PeriodicChecks(object):
     def run_check_and_store_result(self, context, host, check,
                                     adapter_instance):
         LOG.debug("Periodic check store result into DB[%s]", host)
-        result, status = adapter_instance.is_trusted(host, 'trusted')
+        class CheckThread(threading.Thread):
+            def __init__(self):
+                threading.Thread.__init__(self)
+                self.status = 'timeout'
+                self.result = False
+            def run(self):
+                self.result, self.status = adapter_instance.is_trusted(host, 'trusted')
+
+            def _stop(self):
+                if self.isAlive():
+                    threading.Thread._Thread__stop(self)
+
+        check_thread = CheckThread()
+        check_thread.start()
+        if check['timeout']:
+            check_thread.join(check['timeout'])
+        else:
+            check_thread.join()
+        if check_thread.isAlive():
+            check_thread._stop()
 
         current_host = self.compute_nodes[host]
-        current_host['trust_lvl'] = result
+        current_host['trust_lvl'] = check_thread.result
 
         '''store data'''
         check_result = {'check_id': check.id,
                         'check_name': check.name,
                         'time': timeutils.strtime(),
                         'node': host,
-                        'result': result,
-                        'status': status}
+                        'result': check_thread.result,
+                        'status': check_thread.status}
 
         '''maintain trusted pool'''
         self.compute_nodes[host] = {
-                        'trust_lvl': result,
+                        'trust_lvl': check_thread.result,
                         'vtime': timeutils.utcnow_ts()}
 
         db.periodic_check_results_store(context, check_result)
